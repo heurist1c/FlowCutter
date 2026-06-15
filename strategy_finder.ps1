@@ -34,15 +34,15 @@ function Start-WinwsHidden {
     $rawLines = Get-Content $BatPath -ErrorAction SilentlyContinue
     if (-not $rawLines) { return $null }
 
-    $binPath = Join-Path $WorkDir "bin"
-    $listsPath = Join-Path $WorkDir "lists"
+    $binPath = (Join-Path $WorkDir "bin") + "\"
+    $listsPath = (Join-Path $WorkDir "lists") + "\"
 
     $inCommand = $false
     $cmdParts = @()
     foreach ($line in $rawLines) {
         $trimmed = $line.Trim()
         if ($trimmed -match 'winws\.exe') {
-            $afterExe = $trimmed -replace '.*winws\.exe\s*', '' -replace '^\s*/min\s*', ''
+            $afterExe = ($trimmed -replace '.*winws\.exe["\s]*', '').TrimEnd('^').Trim()
             $cmdParts += $afterExe
             $inCommand = $true
             continue
@@ -77,13 +77,40 @@ call "service.bat" load_user_lists >nul 2>&1
 
     try {
         $prep = Start-Process cmd.exe "/c `"$prepBat`"" -WindowStyle Hidden -WorkingDirectory $WorkDir -Wait -PassThru
-    } catch {}
+        if (-not $prep.HasExited) { $prep.WaitForExit(5000) }
+        if (-not $prep.HasExited) {
+            Write-Host "Prep script timed out, killing..."
+            $prep.Kill()
+        }
+    } catch { Write-Host "Prep error: $_" }
 
     $exe = Join-Path $binPath "winws.exe"
+    if (-not (Test-Path $exe)) {
+        Write-Host "winws.exe not found at: $exe"
+        return $null
+    }
+
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Host "WARNING: Not running as admin. WinDivert requires elevation."
+    }
+
     try {
-        $proc = Start-Process $exe $fullCmd -WindowStyle Hidden -WorkingDirectory $binPath -PassThru
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $exe
+        $psi.Arguments = $fullCmd
+        $psi.WorkingDirectory = $binPath
+        $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+        $psi.CreateNoWindow = $true
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardError = $true
+        $psi.RedirectStandardOutput = $true
+        $proc = [System.Diagnostics.Process]::Start($psi)
         return $proc
-    } catch { return $null }
+    } catch {
+        Write-Host "Error launching winws.exe: $_"
+        return $null
+    }
 }
 
 function Test-TargetUrl {
@@ -280,9 +307,10 @@ $xamlStr = @'
                                                   Cursor="Hand">
                                         <ToggleButton.Template>
                                             <ControlTemplate TargetType="ToggleButton">
-                                                <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Grid>
                                                     <Path x:Name="Arrow" Data="M0,0 L5,4 L10,0" Stroke="#666666"
-                                                          StrokeThickness="1.5" Fill="Transparent"/>
+                                                          StrokeThickness="1.5" Fill="Transparent"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Grid>
                                             </ControlTemplate>
                                         </ToggleButton.Template>
@@ -734,6 +762,11 @@ $BtnRunStrategy.Add_Click({
         Stop-Winws
         $bat = $script:batFiles[$idx]
         $proc = Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
+        if (-not $proc) {
+            $StatusText.Text = "Failed to start: $($bat.Name.Replace('.bat','')) (could not launch process)"
+            $BtnStop.IsEnabled = $false
+            return
+        }
         $script:winwsProcess = $proc
         Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
@@ -742,7 +775,20 @@ $BtnRunStrategy.Add_Click({
             $BtnStop.IsEnabled = $true
             $BtnLaunch.IsEnabled = $false
         } else {
-            $StatusText.Text = "Failed to start: $($bat.Name.Replace('.bat',''))"
+            $stderr = ""
+            $exitCode = -1
+            try {
+                if (-not $proc.HasExited) { $proc.WaitForExit(2000) }
+                $stderr = $proc.StandardError.ReadToEnd()
+                $exitCode = $proc.ExitCode
+            } catch {}
+            $detail = "exit=$exitCode"
+            if ($stderr -and $stderr.Trim().Length -gt 0) {
+                $shortErr = $stderr.Trim().Substring(0, [Math]::Min(120, $stderr.Trim().Length))
+                $detail += " | $shortErr"
+            }
+            $StatusText.Text = "Failed: $($bat.Name.Replace('.bat','')) ($detail)"
+            Write-Host "winws stderr: $stderr"
             $BtnStop.IsEnabled = $false
         }
     }
@@ -1141,6 +1187,11 @@ $BtnLaunch.Add_Click({
     if ($script:selectedBat) {
         Stop-Winws
         $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+        if (-not $proc) {
+            $StatusText.Text = "Failed to start: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)) (could not launch process)"
+            $BtnStop.IsEnabled = $false
+            return
+        }
         $script:winwsProcess = $proc
         Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
@@ -1149,7 +1200,20 @@ $BtnLaunch.Add_Click({
             $BtnStop.IsEnabled = $true
             $BtnLaunch.IsEnabled = $false
         } else {
-            $StatusText.Text = "Failed to start: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+            $stderr = ""
+            $exitCode = -1
+            try {
+                if (-not $proc.HasExited) { $proc.WaitForExit(2000) }
+                $stderr = $proc.StandardError.ReadToEnd()
+                $exitCode = $proc.ExitCode
+            } catch {}
+            $detail = "exit=$exitCode"
+            if ($stderr -and $stderr.Trim().Length -gt 0) {
+                $shortErr = $stderr.Trim().Substring(0, [Math]::Min(120, $stderr.Trim().Length))
+                $detail += " | $shortErr"
+            }
+            $StatusText.Text = "Failed: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)) ($detail)"
+            Write-Host "winws stderr: $stderr"
             $BtnStop.IsEnabled = $false
         }
     }
