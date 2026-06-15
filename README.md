@@ -16,44 +16,90 @@ GUI-утилита для [zapret-discord-youtube](https://github.com/Flowseal/z
 
 - **Автоподбор стратегии** — проверяет все `general*.bat` стратегии, пингует Discord и YouTube, выставляет рейтинг
 - **Управление доменами** — добавление/удаление доменов в списки bypass и exclude прямо из GUI
-- **Настройка zapret** — Game Filter, IPSet Filter, автопроверка обновлений, управление службой
+- **Настройка zapret** — Game Filter, IPSet Filter, управление службой
+- **Обновления** — двойная проверка: база (Flowseal) + GUI-обёртка (FlowCutter)
 - **Скрытый запуск** — стратегии запускаются без всплывающих окон
 
-## Быстрый старт
+## Установка
 
-1. Включите **Secure DNS** в браузере или Windows 11
-2. Скачайте и распакуйте [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube/releases/latest) в путь без кириллицы
-3. Скопируйте `strategy_finder.ps1` и `strategy finder.bat` в корень распакованной папки
-4. Запустите **`strategy finder.bat`** от имени администратора
-5. Нажмите **Find Best** и дождитесь результатов
-6. Выберите лучшую стратегию и нажмите **Launch**
+FlowCutter — это **оверлей** поверх [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube). Он не содержит сам `winws.exe` и WinDivert — эти файлы берутся из оригинального репозитория.
 
-## Структура GUI
+### Шаг 1. Скачайте оригинальный zapret
 
-### Strategy Finder
-Автоматически тестирует все стратегии и показывает результаты в таблице:
-- **Discord** — доступность discord.com и gateway.discord.gg
-- **YouTube** — доступность youtube.com и youtu.be
-- **Score** — общий процент успеха
+Скачайте последний релиз [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube/releases/latest) (ZIP или RAR) и распакуйте в путь **без кириллицы и пробелов**.
 
-### Domains
-Управление пользовательскими списками доменов:
-- **Bypass** — домены, для которых zapret работает (файл `list-general-user.txt`)
-- **Exclude** — домены, для которых zapret НЕ работает (файл `list-exclude-user.txt`)
+```
+C:\zapret\
+├── bin\              ← winws.exe, WinDivert, .bin пейлоады (из Flowseal)
+├── general.bat
+├── general (ALT).bat
+├── lists\
+├── service.bat
+└── ...
+```
 
-### Settings
-- **Game Filter** — переключение режима обхода для игр (Disabled / TCP+UDP / TCP / UDP)
-- **IPSet Filter** — управление фильтрацией по IP (None / Loaded / Any)
-- **Auto Update** — вкл/выкл автопроверки обновлений
+### Шаг 2. Скачайте FlowCutter
+
+Скачайте [последний релиз FlowCutter](https://github.com/heurist1c/FlowCutter/releases/latest) (Source code zip) и распакуйте.
+
+### Шаг 3. Замените файлы
+
+Скопируйте **всё содержимое** из архива FlowCutter в корень распакованного zapret. Подтвердите замену файлов:
+
+```
+C:\zapret\
+├── bin\              ← НЕ трогаем (из Flowseal)
+├── general.bat       ← заменён на версию FlowCutter
+├── lists\            ← заменены списки доменов
+├── service.bat       ← заменён на версию FlowCutter
+├── strategy_finder.ps1   ← ДОБАВЛЕН (GUI)
+├── strategy finder.bat   ← ДОБАВЛЕН (лаунчер)
+├── utils\            ← ДОБАВЛЕН (утилиты)
+└── .service\         ← ДОБАВЛЕН (версии, данные)
+```
+
+### Шаг 4. Запустите
+
+Запустите **`strategy finder.bat`** от имени администратора.
+
+## Использование
+
+### Strategy Finder (Автоподбор)
+
+1. Нажмите **Find Best**
+2. Дождитесь результатов — каждая стратегия тестируется на Discord и YouTube
+3. Лучшая стратегия подсвечивается в таблице
+4. Нажмите **Launch** для запуска выбранной стратегии
+
+### Domains (Управление доменами)
+
+- **Bypass** — домены, для которых zapret работает (`list-general-user.txt`)
+- **Exclude** — домены, для которых zapret НЕ работает (`list-exclude-user.txt`)
+
+Введите домен в поле и нажмите `+ Bypass` или `+ Exclude`.
+
+### Settings (Настройки)
+
+- **Game Filter** — режим обхода для игр (Disabled / TCP+UDP / TCP / UDP)
+- **IPSet Filter** — фильтрация по IP-адресам (None / Loaded / Any)
+- **Updates** — проверка обновлений базы (Flowseal) и GUI-обёртки (FlowCutter)
 - **Service** — установка/удаление службы zapret
-- **Update Lists** — обновление IPSet и hosts из репозитория
+- **Update IPSet / Hosts** — обновление списков из репозитория Flowseal
+
+## Обновления
+
+FlowCutter проверяет обновления из **двух источников**:
+
+| Источник | Что обновляет |
+|----------|---------------|
+| [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) | `general*.bat`, `lists/`, `service.bat` |
+| [heurist1c/FlowCutter](https://github.com/heurist1c/FlowCutter) | `strategy_finder.ps1`, GUI, `utils/` |
 
 ## Требования
 
 - Windows 10/11
 - PowerShell 3.0+
-- Права администратора
-- [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube/releases/latest) распакованный в корне
+- Права администратора (WinDivert требует elevated privileges)
 
 ## Как работает автоподбор
 
@@ -68,7 +114,7 @@ GUI-утилита для [zapret-discord-youtube](https://github.com/Flowseal/z
 
 ## Связанные проекты
 
-- [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) — оригинальный репозиторий с стратегиями
+- [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) — оригинальный репозиторий с стратегиями и бинарниками
 - [zapret](https://github.com/bol-van/zapret) — оригинальный zapret от bol-van
 - [WinDivert](https://github.com/basil00/WinDivert) — драйвер перехвата трафика
 
