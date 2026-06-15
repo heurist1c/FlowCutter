@@ -69,7 +69,6 @@ function Start-WinwsHidden {
 @echo off
 cd /d "$WorkDir"
 call "service.bat" status_zapret >nul 2>&1
-call "service.bat" check_updates >nul 2>&1
 call "service.bat" load_game_filter >nul 2>&1
 call "service.bat" load_user_lists >nul 2>&1
 "@
@@ -1373,7 +1372,6 @@ function Start-Scan {
 @echo off
 cd /d "$rootDir"
 call "service.bat" status_zapret >nul 2>&1
-call "service.bat" check_updates >nul 2>&1
 call "service.bat" load_game_filter >nul 2>&1
 call "service.bat" load_user_lists >nul 2>&1
 "@
