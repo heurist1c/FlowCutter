@@ -1,3 +1,10 @@
+# Original zapret binaries (from bol-van/zapret)
+bin/
+
+# GitHub CI/CD
+.github/
+.gitattributes
+
 # User-generated lists
 /lists/list-general-user.txt
 /lists/list-exclude-user.txt
