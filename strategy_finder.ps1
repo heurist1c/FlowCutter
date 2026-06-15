@@ -204,7 +204,17 @@ function Get-LocalVersion {
     return "unknown"
 }
 
-function Get-GitHubRelease {
+function Get-FlowsealVersion {
+    try {
+        $headers = @{ "Cache-Control" = "no-cache"; "User-Agent" = "FlowCutter" }
+        $resp = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/main/.service/version.txt" -Headers $headers -TimeoutSec 10
+        return $resp.Trim()
+    } catch {
+        return $null
+    }
+}
+
+function Get-FlowCutterRelease {
     $repo = "heurist1c/FlowCutter"
     try {
         $headers = @{ "Cache-Control" = "no-cache"; "User-Agent" = "FlowCutter" }
@@ -213,6 +223,20 @@ function Get-GitHubRelease {
     } catch {
         return $null
     }
+}
+
+function Get-FlowsealLocalVersion {
+    $verFile = Join-Path $rootDir ".service\flowseal_version.txt"
+    if (Test-Path $verFile) {
+        return (Get-Content $verFile -First 1).Trim()
+    }
+    return "unknown"
+}
+
+function Set-FlowsealLocalVersion {
+    param([string]$Version)
+    $verFile = Join-Path $rootDir ".service\flowseal_version.txt"
+    [System.IO.File]::WriteAllText($verFile, $Version, [System.Text.Encoding]::UTF8)
 }
 
 function Download-FlowCutterUpdate {
@@ -265,6 +289,60 @@ function Download-FlowCutterUpdate {
             Copy-Item $bat.FullName $rootDir -Force
             $copied++
         }
+
+        return @{ Success = $true; Copied = $copied }
+    } catch {
+        return @{ Success = $false; Error = $_.Exception.Message }
+    } finally {
+        if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+function Download-FlowsealUpdate {
+    param([string]$Version)
+    $zipUrl = "https://github.com/Flowseal/zapret-discord-youtube/archive/refs/tags/$Version.zip"
+    $tempDir = Join-Path $env:TEMP "Flowseal_update_$([System.IO.Path]::GetRandomFileName())"
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+    $zipFile = Join-Path $tempDir "update.zip"
+
+    try {
+        $headers = @{ "User-Agent" = "FlowCutter" }
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile -Headers $headers -TimeoutSec 60 -UseBasicParsing
+
+        Expand-Archive -Path $zipFile -DestinationPath $tempDir -Force
+
+        $repoDir = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "zapret*" } | Select-Object -First 1
+        if (-not $repoDir) {
+            $repoDir = Get-ChildItem -Path $tempDir -Directory | Select-Object -First 1
+        }
+        if (-not $repoDir) { throw "No repo directory found in zip" }
+
+        $filesToCopy = @("service.bat")
+        $dirsToCopy = @("lists")
+
+        $copied = 0
+        foreach ($f in $filesToCopy) {
+            $src = Join-Path $repoDir.FullName $f
+            if (Test-Path $src) {
+                Copy-Item $src $rootDir -Force
+                $copied++
+            }
+        }
+        foreach ($d in $dirsToCopy) {
+            $src = Join-Path $repoDir.FullName $d
+            if (Test-Path $src) {
+                Copy-Item $src $rootDir -Recurse -Force
+                $copied++
+            }
+        }
+
+        $batSrc = Get-ChildItem -Path $repoDir.FullName -Filter "general*.bat" -File
+        foreach ($bat in $batSrc) {
+            Copy-Item $bat.FullName $rootDir -Force
+            $copied++
+        }
+
+        Set-FlowsealLocalVersion -Version $Version
 
         return @{ Success = $true; Copied = $copied }
     } catch {
@@ -690,15 +768,24 @@ $xamlStr = @'
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="FlowCutter Update" FontSize="12" FontWeight="SemiBold"
+                                <TextBlock Text="Updates" FontSize="12" FontWeight="SemiBold"
                                            Foreground="#cccccc" Margin="0,0,0,6"/>
-                                <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
+                                <TextBlock Name="FlowsealLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,4"/>
+                                <TextBlock Name="FlowsealRemoteLabel" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="BtnCheckFlowseal" Content="Check Base" Style="{StaticResource BtnPrimary}"
+                                            Margin="0,0,8,0" MinWidth="90"/>
+                                    <Button Name="BtnDownloadFlowseal" Content="Update Base" Style="{StaticResource BtnAccent}"
+                                            MinWidth="100" Visibility="Hidden"/>
+                                </StackPanel>
+                                <Border Height="1" Background="#1a1a1a" Margin="0,8,0,8"/>
+                                <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,4"/>
                                 <TextBlock Name="UpdateRemoteLabel" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Name="BtnCheckUpdate" Content="Check" Style="{StaticResource BtnPrimary}"
-                                            Margin="0,0,8,0" MinWidth="80"/>
-                                    <Button Name="BtnDownloadUpdate" Content="Download Update" Style="{StaticResource BtnAccent}"
-                                            MinWidth="120" Visibility="Hidden"/>
+                                    <Button Name="BtnCheckUpdate" Content="Check Overlay" Style="{StaticResource BtnPrimary}"
+                                            Margin="0,0,8,0" MinWidth="90"/>
+                                    <Button Name="BtnDownloadUpdate" Content="Update Overlay" Style="{StaticResource BtnAccent}"
+                                            MinWidth="100" Visibility="Hidden"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -800,6 +887,10 @@ $BtnApplyGame      = $window.FindName("BtnApplyGame")
 $IPSetLabel        = $window.FindName("IPSetLabel")
 $IPSetCombo        = $window.FindName("IPSetCombo")
 $BtnApplyIPSet     = $window.FindName("BtnApplyIPSet")
+$FlowsealLabel     = $window.FindName("FlowsealLabel")
+$FlowsealRemoteLabel = $window.FindName("FlowsealRemoteLabel")
+$BtnCheckFlowseal  = $window.FindName("BtnCheckFlowseal")
+$BtnDownloadFlowseal = $window.FindName("BtnDownloadFlowseal")
 $UpdateLabel       = $window.FindName("UpdateLabel")
 $UpdateRemoteLabel = $window.FindName("UpdateRemoteLabel")
 $BtnCheckUpdate    = $window.FindName("BtnCheckUpdate")
@@ -967,9 +1058,14 @@ function Refresh-Settings {
     $IPSetCombo.SelectedIndex = $(if ($ipIdx -ge 0) { $ipIdx } else { 0 })
 
     $localVer = Get-LocalVersion
-    $UpdateLabel.Text = "Local: v$localVer"
+    $UpdateLabel.Text = "Overlay: v$localVer"
     $UpdateRemoteLabel.Text = ""
     $BtnDownloadUpdate.Visibility = "Hidden"
+
+    $flowsealLocal = Get-FlowsealLocalVersion
+    $FlowsealLabel.Text = "Base: v$flowsealLocal"
+    $FlowsealRemoteLabel.Text = ""
+    $BtnDownloadFlowseal.Visibility = "Hidden"
 
     $svcInstalled = $false
     try {
@@ -1039,6 +1135,65 @@ $BtnApplyIPSet.Add_Click({
 })
 
 $script:latestRelease = $null
+$script:latestFlowsealVer = $null
+
+$BtnCheckFlowseal.Add_Click({
+    $FlowsealRemoteLabel.Text = "Checking..."
+    $FlowsealRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+    $BtnCheckFlowseal.IsEnabled = $false
+    $BtnDownloadFlowseal.Visibility = "Hidden"
+
+    $remoteVer = Get-FlowsealVersion
+    $script:latestFlowsealVer = $remoteVer
+    $localVer = Get-FlowsealLocalVersion
+
+    if (-not $remoteVer) {
+        $FlowsealRemoteLabel.Text = "Failed to check (network error)"
+        $FlowsealRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        $BtnCheckFlowseal.IsEnabled = $true
+        return
+    }
+
+    $FlowsealRemoteLabel.Text = "Remote: v$remoteVer"
+
+    if ($remoteVer -ne $localVer) {
+        $FlowsealRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
+        $BtnDownloadFlowseal.Visibility = "Visible"
+        $BtnDownloadFlowseal.Content = "Update to v$remoteVer"
+    } else {
+        $FlowsealRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+    }
+    $BtnCheckFlowseal.IsEnabled = $true
+})
+
+$BtnDownloadFlowseal.Add_Click({
+    if (-not $script:latestFlowsealVer) {
+        $SettingsStatus.Text = "No version info. Click Check Base first."
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        return
+    }
+
+    $ver = $script:latestFlowsealVer
+
+    $SettingsStatus.Text = "Downloading Flowseal v$ver ..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+    $BtnDownloadFlowseal.IsEnabled = $false
+    $BtnCheckFlowseal.IsEnabled = $false
+
+    $result = Download-FlowsealUpdate -Version $ver
+
+    if ($result.Success) {
+        $SettingsStatus.Text = "Base updated to v$ver! ($($result.Copied) items)"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+        $BtnDownloadFlowseal.Visibility = "Hidden"
+        $FlowsealRemoteLabel.Text = "Remote: v$ver (downloaded)"
+    } else {
+        $SettingsStatus.Text = "Download failed: $($result.Error)"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+    }
+    $BtnDownloadFlowseal.IsEnabled = $true
+    $BtnCheckFlowseal.IsEnabled = $true
+})
 
 $BtnCheckUpdate.Add_Click({
     $UpdateRemoteLabel.Text = "Checking..."
@@ -1046,7 +1201,7 @@ $BtnCheckUpdate.Add_Click({
     $BtnCheckUpdate.IsEnabled = $false
     $BtnDownloadUpdate.Visibility = "Hidden"
 
-    $release = Get-GitHubRelease
+    $release = Get-FlowCutterRelease
     $script:latestRelease = $release
 
     if (-not $release) {
@@ -1063,7 +1218,7 @@ $BtnCheckUpdate.Add_Click({
     if ($remoteVer -ne $localVer) {
         $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
         $BtnDownloadUpdate.Visibility = "Visible"
-        $BtnDownloadUpdate.Content = "Download v$remoteVer"
+        $BtnDownloadUpdate.Content = "Update to v$remoteVer"
     } else {
         $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
     }
@@ -1128,7 +1283,7 @@ $BtnRemoveService.Add_Click({
 })
 
 $BtnUpdateIPSet.Add_Click({
-    $url = "https://raw.githubusercontent.com/heurist1c/FlowCutter/refs/heads/main/.service/ipset-service.txt"
+    $url = "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/refs/heads/main/.service/ipset-service.txt"
     $outFile = Join-Path $listsDir "ipset-all.txt"
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -1150,7 +1305,7 @@ $BtnUpdateIPSet.Add_Click({
 })
 
 $BtnUpdateHosts.Add_Click({
-    $url = "https://raw.githubusercontent.com/heurist1c/FlowCutter/refs/heads/main/.service/hosts"
+    $url = "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/refs/heads/main/.service/hosts"
     $tempFile = Join-Path $env:TEMP "zapret_hosts.txt"
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
