@@ -1462,8 +1462,8 @@ function Start-Scan {
         }
         Push-UI -Pct 0 -Text "Preparing scan..."
 
-        $binPath = Join-Path $rootDir "bin"
-        $listsPath = Join-Path $rootDir "lists"
+        $binPath = (Join-Path $rootDir "bin") + "\"
+        $listsPath = (Join-Path $rootDir "lists") + "\"
 
         $prepBat = "$env:TEMP\flowcutter_scan_prep.bat"
         $prepContent = "@echo off`r`ncd /d `"$rootDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
