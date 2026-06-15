@@ -37,14 +37,6 @@ function Start-WinwsHidden {
     $binPath = Join-Path $WorkDir "bin"
     $listsPath = Join-Path $WorkDir "lists"
 
-    $prepLines = @()
-    $prepLines += "@echo off"
-    $prepLines += "cd /d `"$WorkDir`""
-    $prepLines += "call `"$WorkDir\service.bat`" status_zapret"
-    $prepLines += "call `"$WorkDir\service.bat`" check_updates"
-    $prepLines += "call `"$WorkDir\service.bat`" load_game_filter"
-    $prepLines += "call `"$WorkDir\service.bat`" load_user_lists"
-
     $inCommand = $false
     $cmdParts = @()
     foreach ($line in $rawLines) {
@@ -72,19 +64,24 @@ function Start-WinwsHidden {
     $fullCmd = $fullCmd -replace '%GameFilterTCP%', '12'
     $fullCmd = $fullCmd -replace '%GameFilterUDP%', '12'
 
-    foreach ($p in $prepLines) { "$p" | Out-File "$env:TEMP\flowcutter_launch.bat" -Encoding ASCII -Append }
-    "`"$binPath\winws.exe`" $fullCmd" | Out-File "$env:TEMP\flowcutter_launch.bat" -Encoding ASCII -Append
+    $prepBat = "$env:TEMP\flowcutter_prep.bat"
+    $prepContent = @"
+@echo off
+cd /d "$WorkDir"
+call "service.bat" status_zapret >nul 2>&1
+call "service.bat" check_updates >nul 2>&1
+call "service.bat" load_game_filter >nul 2>&1
+call "service.bat" load_user_lists >nul 2>&1
+"@
+    [System.IO.File]::WriteAllText($prepBat, $prepContent, [System.Text.Encoding]::Default)
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"$env:TEMP\flowcutter_launch.bat`""
-    $psi.WorkingDirectory = $binPath
-    $psi.CreateNoWindow = $true
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
     try {
-        $proc = [System.Diagnostics.Process]::Start($psi)
+        $prep = Start-Process cmd.exe "/c `"$prepBat`"" -WindowStyle Hidden -WorkingDirectory $WorkDir -Wait -PassThru
+    } catch {}
+
+    $exe = Join-Path $binPath "winws.exe"
+    try {
+        $proc = Start-Process $exe $fullCmd -WindowStyle Hidden -WorkingDirectory $binPath -PassThru
         return $proc
     } catch { return $null }
 }
@@ -268,7 +265,7 @@ $xamlStr = @'
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition Width="36"/>
                                     </Grid.ColumnDefinitions>
                                     <ContentPresenter IsHitTestVisible="False"
                                                       Grid.Column="0"
@@ -279,7 +276,8 @@ $xamlStr = @'
                                                       HorizontalAlignment="Left"/>
                                     <ToggleButton Grid.Column="1"
                                                   IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                                  Focusable="False" IsTabStop="False">
+                                                  Focusable="False" IsTabStop="False"
+                                                  Cursor="Hand">
                                         <ToggleButton.Template>
                                             <ControlTemplate TargetType="ToggleButton">
                                                 <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -737,7 +735,7 @@ $BtnRunStrategy.Add_Click({
         $bat = $script:batFiles[$idx]
         $proc = Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
         $script:winwsProcess = $proc
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
         if ($running) {
             $StatusText.Text = "Running: $($bat.Name.Replace('.bat',''))"
@@ -1144,7 +1142,7 @@ $BtnLaunch.Add_Click({
         Stop-Winws
         $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
         $script:winwsProcess = $proc
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
         if ($running) {
             $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
