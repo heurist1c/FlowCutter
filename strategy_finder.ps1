@@ -1464,6 +1464,11 @@ function Start-Scan {
 
         $binPath = (Join-Path $rootDir "bin") + "\"
         $listsPath = (Join-Path $rootDir "lists") + "\"
+        $debugLog = Join-Path $env:TEMP "flowcutter_scan_debug.txt"
+        "Scan started at $(Get-Date)" | Out-File $debugLog -Encoding UTF8
+        "rootDir: $rootDir" | Out-File $debugLog -Append -Encoding UTF8
+        "binPath: $binPath" | Out-File $debugLog -Append -Encoding UTF8
+        "winws.exe exists: $(Test-Path (Join-Path $binPath 'winws.exe'))" | Out-File $debugLog -Append -Encoding UTF8
 
         $prepBat = "$env:TEMP\flowcutter_scan_prep.bat"
         $prepContent = "@echo off`r`ncd /d `"$rootDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
@@ -1503,41 +1508,66 @@ function Start-Scan {
                 if ($parts.Count -gt 0) {
                     $gf = Get-GameFilterValues
                     $cmd = ($parts -join ' ') -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%',$gf.TCP -replace '%GameFilterUDP%',$gf.UDP
+                    "--- [$idx/$total] $($bat.Name) ---" | Out-File $debugLog -Append -Encoding UTF8
+                    "CMD: $cmd" | Out-File $debugLog -Append -Encoding UTF8
+                    $exe = Join-Path $binPath "winws.exe"
+                    "EXE exists: $(Test-Path $exe)" | Out-File $debugLog -Append -Encoding UTF8
                     $psi = New-Object System.Diagnostics.ProcessStartInfo
-                    $psi.FileName = Join-Path $binPath "winws.exe"
+                    $psi.FileName = $exe
                     $psi.Arguments = $cmd
                     $psi.WorkingDirectory = $binPath
                     $psi.CreateNoWindow = $true
                     $psi.UseShellExecute = $false
                     $psi.RedirectStandardOutput = $true
                     $psi.RedirectStandardError = $true
-                    try { [void][System.Diagnostics.Process]::Start($psi) } catch {}
+                    try {
+                        $proc = [System.Diagnostics.Process]::Start($psi)
+                        "winws PID: $($proc.Id), HasExited: $($proc.HasExited)" | Out-File $debugLog -Append -Encoding UTF8
+                        $proc.BeginOutputReadLine()
+                        $proc.BeginErrorReadLine()
+                    } catch {
+                        "FAILED TO START: $_" | Out-File $debugLog -Append -Encoding UTF8
+                    }
                 }
             }
 
             $waited = 0
-            while ($waited -lt 3000) {
+            while ($waited -lt 5000) {
                 Start-Sleep -Milliseconds 200
                 $waited += 200
                 if (Get-Process -Name "winws" -EA SilentlyContinue) { break }
             }
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 1000
+
+            $winwsRunning = (Get-Process -Name "winws" -EA SilentlyContinue) -ne $null
+            "winws running after wait: $winwsRunning" | Out-File $debugLog -Append -Encoding UTF8
 
             $dOk = 0; $yOk = 0
             foreach ($u in @("https://discord.com","https://gateway.discord.gg")) {
                 try {
                     $ca = @("-I","-s","-m","3","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
                     $o = & curl.exe @ca 2>&1 | Out-String
-                    if ($LASTEXITCODE -eq 0 -and $o.Trim() -match '^\d{3}$') { $dOk++ }
-                } catch {}
+                    $code = $o.Trim()
+                    $exit = $LASTEXITCODE
+                    "curl $u => exit=$exit code='$code'" | Out-File $debugLog -Append -Encoding UTF8
+                    if ($exit -eq 0 -and $code -match '^\d{3}$') { $dOk++ }
+                } catch {
+                    "curl $u EXCEPTION: $_" | Out-File $debugLog -Append -Encoding UTF8
+                }
             }
             foreach ($u in @("https://www.youtube.com","https://youtu.be")) {
                 try {
                     $ca = @("-I","-s","-m","3","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
                     $o = & curl.exe @ca 2>&1 | Out-String
-                    if ($LASTEXITCODE -eq 0 -and $o.Trim() -match '^\d{3}$') { $yOk++ }
-                } catch {}
+                    $code = $o.Trim()
+                    $exit = $LASTEXITCODE
+                    "curl $u => exit=$exit code='$code'" | Out-File $debugLog -Append -Encoding UTF8
+                    if ($exit -eq 0 -and $code -match '^\d{3}$') { $yOk++ }
+                } catch {
+                    "curl $u EXCEPTION: $_" | Out-File $debugLog -Append -Encoding UTF8
+                }
             }
+            "Result: dOk=$dOk yOk=$yOk" | Out-File $debugLog -Append -Encoding UTF8
 
             Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
             Start-Sleep -Milliseconds 200
