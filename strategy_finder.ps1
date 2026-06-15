@@ -42,7 +42,7 @@ function Start-WinwsHidden {
     foreach ($line in $rawLines) {
         $trimmed = $line.Trim()
         if ($trimmed -match 'winws\.exe') {
-            $afterExe = ($trimmed -replace '.*winws\.exe["\s]*', '').TrimEnd('^').Trim()
+            $afterExe = ($trimmed -replace '.*winws\.exe["\s]*', '').TrimEnd('^').TrimEnd(',').Trim()
             $cmdParts += $afterExe
             $inCommand = $true
             continue
@@ -1498,10 +1498,11 @@ function Start-Scan {
                     $t = $l.Trim()
                     if ($t -match 'winws\.exe') {
                         $after = $t -replace '.*winws\.exe["\s]*', ''
+                        if ($after.EndsWith('^')) { $after = $after.TrimEnd('^').TrimEnd(',').Trim() }
                         $parts += $after; $inCmd = $true; continue
                     }
                     if ($inCmd) {
-                        if ($t.EndsWith('^')) { $parts += $t.TrimEnd('^').Trim() }
+                        if ($t.EndsWith('^')) { $parts += $t.TrimEnd('^').TrimEnd(',').Trim() }
                         else { $parts += $t; $inCmd = $false }
                     }
                 }
