@@ -163,7 +163,7 @@ $xamlStr = @'
     <Window.Resources>
         <Style x:Key="BtnPrimary" TargetType="Button">
             <Setter Property="Background" Value="#2a2a2a"/>
-            <Setter Property="Foreground" Value="#999999"/>
+            <Setter Property="Foreground" Value="#bbbbbb"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,8"/>
@@ -202,7 +202,7 @@ $xamlStr = @'
         </Style>
         <Style x:Key="BtnMuted" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
             <Setter Property="Background" Value="#1a1a1a"/>
-            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="Foreground" Value="#888888"/>
         </Style>
         <Style x:Key="TabBtn" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
@@ -243,15 +243,57 @@ $xamlStr = @'
         </Style>
         <Style x:Key="DarkCombo" TargetType="ComboBox">
             <Setter Property="Background" Value="#0e0e0e"/>
-            <Setter Property="Foreground" Value="#888888"/>
-            <Setter Property="BorderBrush" Value="#1e1e1e"/>
+            <Setter Property="Foreground" Value="#aaaaaa"/>
+            <Setter Property="BorderBrush" Value="#222222"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Bd" Background="#0e0e0e" BorderBrush="#222222" BorderThickness="1"
+                                    CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                <Grid>
+                                    <ContentPresenter IsHitTestVisible="False"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                      Margin="{TemplateBinding Padding}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                      HorizontalAlignment="Left"/>
+                                    <ToggleButton IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  Focusable="False" IsTabStop="False">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Grid>
+                                                    <Border Background="Transparent" HorizontalAlignment="Right" Width="24">
+                                                        <Path x:Name="Arrow" Data="M0,0 L5,5 L10,0" Stroke="#666666"
+                                                              StrokeThickness="1.5" Fill="Transparent"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True"
+                                   Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#141414" BorderBrush="#222222" BorderThickness="1"
+                                        CornerRadius="4" Margin="0,2,0,0">
+                                    <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                                  SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
             <Setter Property="Background" Value="#141414"/>
-            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Foreground" Value="#bbbbbb"/>
             <Setter Property="Padding" Value="8,5"/>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
@@ -302,7 +344,7 @@ $xamlStr = @'
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,10">
-            <TextBlock Text="FlowCutter" FontSize="26" FontWeight="Bold" Foreground="#666666"/>
+            <TextBlock Text="FlowCutter" FontSize="26" FontWeight="Bold" Foreground="#cccccc"/>
         </StackPanel>
 
         <!-- Tabs -->
@@ -330,7 +372,7 @@ $xamlStr = @'
                     <!-- Quick Launch -->
                     <Border Grid.Row="0" Background="#141414" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Strategy:" FontSize="12" Foreground="#555555"
+                            <TextBlock Text="Strategy:" FontSize="12" Foreground="#dddddd"
                                        VerticalAlignment="Center" Margin="0,0,10,0"/>
                             <ComboBox Name="StrategyCombo" Width="340" Style="{StaticResource DarkCombo}"
                                       ItemContainerStyle="{StaticResource DarkComboItem}"/>
@@ -342,12 +384,12 @@ $xamlStr = @'
                     <!-- Status -->
                     <Border Grid.Row="1" Background="#141414" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
                         <TextBlock Name="StatusText" Text="Select a strategy or click Find Best to scan"
-                                   FontSize="12" Foreground="#555555"/>
+                                   FontSize="12" Foreground="#dddddd"/>
                     </Border>
 
                     <!-- Results -->
                     <DataGrid Grid.Row="2" Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                              Background="Transparent" Foreground="#777777"
+                              Background="Transparent" Foreground="#cccccc"
                               GridLinesVisibility="None" BorderThickness="0"
                               RowBackground="Transparent" AlternatingRowBackground="#0c0c0c"
                               HeadersVisibility="Column" CanUserSortColumns="True"
@@ -384,7 +426,7 @@ $xamlStr = @'
                                     HorizontalAlignment="Left" Width="0" Height="8"/>
                         </Border>
                         <TextBlock Grid.Column="1" Name="ProgressText" Text="0%"
-                                   FontSize="11" Foreground="#444444" VerticalAlignment="Center"/>
+                                   FontSize="11" Foreground="#cccccc" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Buttons -->
@@ -409,7 +451,7 @@ $xamlStr = @'
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Domain:" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="0" Text="Domain:" FontSize="12" Foreground="#dddddd" Margin="0,0,0,6"/>
                     <Grid Grid.Row="1" Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -435,7 +477,7 @@ $xamlStr = @'
                                        FontSize="11" Foreground="#4a7a5a" Margin="0,0,0,4"/>
                             <ListBox Name="BypassList"
                                      BorderThickness="0" Background="Transparent"
-                                     Foreground="#777777" FontSize="12"
+                                     Foreground="#cccccc" FontSize="12"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
                         </DockPanel>
                         <Button Grid.Column="1" Name="BtnRemoveBypass" Content="x" Style="{StaticResource BtnDanger}"
@@ -456,7 +498,7 @@ $xamlStr = @'
                                        FontSize="11" Foreground="#7a4a4a" Margin="0,0,0,4"/>
                             <ListBox Name="ExcludeList"
                                      BorderThickness="0" Background="Transparent"
-                                     Foreground="#777777" FontSize="12"
+                                     Foreground="#cccccc" FontSize="12"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
                         </DockPanel>
                         <Button Grid.Column="1" Name="BtnRemoveExclude" Content="x" Style="{StaticResource BtnDanger}"
@@ -480,13 +522,13 @@ $xamlStr = @'
 
                     <StackPanel Grid.Column="0" Margin="0,0,16,0">
                         <TextBlock Text="Settings" FontSize="15" FontWeight="SemiBold"
-                                   Foreground="#777777" Margin="0,0,0,12"/>
+                                   Foreground="#cccccc" Margin="0,0,0,12"/>
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Game Filter" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
-                                <TextBlock Name="GameFilterLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="GameFilterLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
                                 <StackPanel Orientation="Horizontal">
                                     <ComboBox Name="GameFilterCombo" Width="160" Style="{StaticResource DarkCombo}"
                                               ItemContainerStyle="{StaticResource DarkComboItem}">
@@ -504,8 +546,8 @@ $xamlStr = @'
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="IPSet Filter" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
-                                <TextBlock Name="IPSetLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="IPSetLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
                                 <StackPanel Orientation="Horizontal">
                                     <ComboBox Name="IPSetCombo" Width="160" Style="{StaticResource DarkCombo}"
                                               ItemContainerStyle="{StaticResource DarkComboItem}">
@@ -522,8 +564,8 @@ $xamlStr = @'
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Auto Update Check" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
-                                <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
                                 <Button Name="BtnToggleUpdate" Style="{StaticResource BtnPrimary}" MinWidth="120"/>
                             </StackPanel>
                         </Border>
@@ -531,13 +573,13 @@ $xamlStr = @'
 
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Service" FontSize="15" FontWeight="SemiBold"
-                                   Foreground="#777777" Margin="0,0,0,12"/>
+                                   Foreground="#cccccc" Margin="0,0,0,12"/>
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="zapret Service" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
-                                <TextBlock Name="ServiceLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,8"/>
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="ServiceLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,8"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Name="BtnInstallService" Content="Install" Style="{StaticResource BtnAccent}"
                                             Margin="0,0,8,0" MinWidth="80"/>
@@ -552,7 +594,7 @@ $xamlStr = @'
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Update Lists" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Button Name="BtnUpdateIPSet" Content="Update IPSet" Style="{StaticResource BtnPrimary}"
                                             Margin="0,0,8,0"/>
@@ -564,15 +606,15 @@ $xamlStr = @'
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Installed Strategy" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#777777" Margin="0,0,0,6"/>
-                                <TextBlock Name="InstalledStrategyLabel" FontSize="11" Foreground="#555555"
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="InstalledStrategyLabel" FontSize="11" Foreground="#dddddd"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Name="SettingsStatus" FontSize="11" Foreground="#555555"
+                                <TextBlock Name="SettingsStatus" FontSize="11" Foreground="#dddddd"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
