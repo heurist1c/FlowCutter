@@ -58,11 +58,11 @@ function Start-WinwsHidden {
     if ($cmdParts.Count -eq 0) { return $null }
 
     $fullCmd = $cmdParts -join ' '
-    $fullCmd = $fullCmd -replace '%~dp0', "$WorkDir\"
+    $gf = Get-GameFilterValues
     $fullCmd = $fullCmd -replace '%BIN%', $binPath
     $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
-    $fullCmd = $fullCmd -replace '%GameFilterTCP%', '12'
-    $fullCmd = $fullCmd -replace '%GameFilterUDP%', '12'
+    $fullCmd = $fullCmd -replace '%GameFilterTCP%', $gf.TCP
+    $fullCmd = $fullCmd -replace '%GameFilterUDP%', $gf.UDP
 
     $prepBat = "$env:TEMP\flowcutter_prep.bat"
     $prepContent = @"
@@ -157,6 +157,18 @@ function Get-GameFilterStatus {
         "tcp" { return "TCP only" }
         "udp" { return "UDP only" }
         default { return "Disabled" }
+    }
+}
+
+function Get-GameFilterValues {
+    $flagFile = Join-Path $utilsDir "game_filter.enabled"
+    if (-not (Test-Path $flagFile)) { return @{ TCP = '12'; UDP = '12' } }
+    $mode = (Get-Content $flagFile -First 1 -ErrorAction SilentlyContinue).Trim()
+    switch ($mode) {
+        "all" { return @{ TCP = '1024-65535'; UDP = '1024-65535' } }
+        "tcp" { return @{ TCP = '1024-65535'; UDP = '12' } }
+        "udp" { return @{ TCP = '12'; UDP = '1024-65535' } }
+        default { return @{ TCP = '12'; UDP = '12' } }
     }
 }
 
@@ -1224,7 +1236,7 @@ function Start-Scan {
                 foreach ($l in $rawLines) {
                     $t = $l.Trim()
                     if ($t -match 'winws\.exe') {
-                        $after = $t -replace '.*winws\.exe\s*', '' -replace '^\s*/min\s*', ''
+                        $after = $t -replace '.*winws\.exe["\s]*', ''
                         $parts += $after; $inCmd = $true; continue
                     }
                     if ($inCmd) {
@@ -1233,7 +1245,8 @@ function Start-Scan {
                     }
                 }
                 if ($parts.Count -gt 0) {
-                    $cmd = ($parts -join ' ') -replace '%~dp0',"$rootDir\" -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%','12' -replace '%GameFilterUDP%','12'
+                    $gf = Get-GameFilterValues
+                    $cmd = ($parts -join ' ') -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%',$gf.TCP -replace '%GameFilterUDP%',$gf.UDP
                     $psi = New-Object System.Diagnostics.ProcessStartInfo
                     $psi.FileName = Join-Path $binPath "winws.exe"
                     $psi.Arguments = $cmd
