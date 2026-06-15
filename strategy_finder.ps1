@@ -263,7 +263,6 @@ function Download-FlowCutterUpdate {
             "service.bat"
         )
         $dirsToCopy = @(
-            "lists",
             "utils",
             ".service"
         )
@@ -282,12 +281,6 @@ function Download-FlowCutterUpdate {
                 Copy-Item $src $rootDir -Recurse -Force
                 $copied++
             }
-        }
-
-        $batSrc = Get-ChildItem -Path $repoDir.FullName -Filter "general*.bat" -File
-        foreach ($bat in $batSrc) {
-            Copy-Item $bat.FullName $rootDir -Force
-            $copied++
         }
 
         return @{ Success = $true; Copied = $copied }
@@ -1370,6 +1363,27 @@ function Start-Scan {
             Push-UI -Pct 100 -Text "No strategy files found"
             return
         }
+        Push-UI -Pct 0 -Text "Preparing scan..."
+
+        $binPath = Join-Path $rootDir "bin"
+        $listsPath = Join-Path $rootDir "lists"
+
+        $prepBat = "$env:TEMP\flowcutter_scan_prep.bat"
+        $prepContent = @"
+@echo off
+cd /d "$rootDir"
+call "service.bat" status_zapret >nul 2>&1
+call "service.bat" check_updates >nul 2>&1
+call "service.bat" load_game_filter >nul 2>&1
+call "service.bat" load_user_lists >nul 2>&1
+"@
+        [System.IO.File]::WriteAllText($prepBat, $prepContent, [System.Text.Encoding]::Default)
+        try {
+            $prep = Start-Process cmd.exe "/c `"$prepBat`"" -WindowStyle Hidden -WorkingDirectory $rootDir -Wait -PassThru
+            if (-not $prep.HasExited) { $prep.WaitForExit(8000) }
+            if (-not $prep.HasExited) { $prep.Kill() }
+        } catch {}
+
         Push-UI -Pct 0 -Text "Scanning $total strategies..."
 
         $results = @()
@@ -1381,9 +1395,6 @@ function Start-Scan {
 
             Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
             Start-Sleep -Milliseconds 200
-
-            $binPath = Join-Path $rootDir "bin"
-            $listsPath = Join-Path $rootDir "lists"
 
             $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
             if ($rawLines) {
