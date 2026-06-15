@@ -184,9 +184,82 @@ function Get-IPSetStatus {
     if ($hasDummy) { return "None" } else { return "Loaded" }
 }
 
-function Get-UpdateCheckStatus {
-    $flagFile = Join-Path $utilsDir "check_updates.enabled"
-    if (Test-Path $flagFile) { return "Enabled" } else { return "Disabled" }
+function Get-LocalVersion {
+    $verFile = Join-Path $rootDir ".service\version.txt"
+    if (Test-Path $verFile) {
+        return (Get-Content $verFile -First 1).Trim()
+    }
+    return "unknown"
+}
+
+function Get-GitHubRelease {
+    $repo = "heurist1c/FlowCutter"
+    try {
+        $headers = @{ "Cache-Control" = "no-cache"; "User-Agent" = "FlowCutter" }
+        $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers $headers -TimeoutSec 10
+        return $resp
+    } catch {
+        return $null
+    }
+}
+
+function Download-FlowCutterUpdate {
+    param([string]$ZipUrl, [string]$Version)
+    $tempDir = Join-Path $env:TEMP "FlowCutter_update_$([System.IO.Path]::GetRandomFileName())"
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+    $zipFile = Join-Path $tempDir "update.zip"
+
+    try {
+        $headers = @{ "User-Agent" = "FlowCutter" }
+        Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -Headers $headers -TimeoutSec 60 -UseBasicParsing
+
+        Expand-Archive -Path $zipFile -DestinationPath $tempDir -Force
+
+        $repoDir = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "FlowCutter*" -or $_.Name -like "zapret*" } | Select-Object -First 1
+        if (-not $repoDir) {
+            $repoDir = Get-ChildItem -Path $tempDir -Directory | Select-Object -First 1
+        }
+        if (-not $repoDir) { throw "No repo directory found in zip" }
+
+        $filesToCopy = @(
+            "strategy_finder.ps1",
+            "strategy finder.bat",
+            "service.bat"
+        )
+        $dirsToCopy = @(
+            "lists",
+            "utils",
+            ".service"
+        )
+
+        $copied = 0
+        foreach ($f in $filesToCopy) {
+            $src = Join-Path $repoDir.FullName $f
+            if (Test-Path $src) {
+                Copy-Item $src $rootDir -Force
+                $copied++
+            }
+        }
+        foreach ($d in $dirsToCopy) {
+            $src = Join-Path $repoDir.FullName $d
+            if (Test-Path $src) {
+                Copy-Item $src $rootDir -Recurse -Force
+                $copied++
+            }
+        }
+
+        $batSrc = Get-ChildItem -Path $repoDir.FullName -Filter "general*.bat" -File
+        foreach ($bat in $batSrc) {
+            Copy-Item $bat.FullName $rootDir -Force
+            $copied++
+        }
+
+        return @{ Success = $true; Copied = $copied }
+    } catch {
+        return @{ Success = $false; Error = $_.Exception.Message }
+    } finally {
+        if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 # --- XAML ---
@@ -605,10 +678,16 @@ $xamlStr = @'
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="Auto Update Check" FontSize="12" FontWeight="SemiBold"
+                                <TextBlock Text="FlowCutter Update" FontSize="12" FontWeight="SemiBold"
                                            Foreground="#cccccc" Margin="0,0,0,6"/>
                                 <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
-                                <Button Name="BtnToggleUpdate" Style="{StaticResource BtnPrimary}" MinWidth="120"/>
+                                <TextBlock Name="UpdateRemoteLabel" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="BtnCheckUpdate" Content="Check" Style="{StaticResource BtnPrimary}"
+                                            Margin="0,0,8,0" MinWidth="80"/>
+                                    <Button Name="BtnDownloadUpdate" Content="Download Update" Style="{StaticResource BtnAccent}"
+                                            MinWidth="120" Visibility="Hidden"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -710,7 +789,9 @@ $IPSetLabel        = $window.FindName("IPSetLabel")
 $IPSetCombo        = $window.FindName("IPSetCombo")
 $BtnApplyIPSet     = $window.FindName("BtnApplyIPSet")
 $UpdateLabel       = $window.FindName("UpdateLabel")
-$BtnToggleUpdate   = $window.FindName("BtnToggleUpdate")
+$UpdateRemoteLabel = $window.FindName("UpdateRemoteLabel")
+$BtnCheckUpdate    = $window.FindName("BtnCheckUpdate")
+$BtnDownloadUpdate = $window.FindName("BtnDownloadUpdate")
 $ServiceLabel      = $window.FindName("ServiceLabel")
 $BtnInstallService = $window.FindName("BtnInstallService")
 $BtnRemoveService  = $window.FindName("BtnRemoveService")
@@ -873,9 +954,10 @@ function Refresh-Settings {
     $ipIdx = [array]::IndexOf($ipItems, $ipsetStatus)
     $IPSetCombo.SelectedIndex = $(if ($ipIdx -ge 0) { $ipIdx } else { 0 })
 
-    $updStatus = Get-UpdateCheckStatus
-    $UpdateLabel.Text = "Current: $updStatus"
-    $BtnToggleUpdate.Content = $(if ($updStatus -eq "Enabled") { "Disable" } else { "Enable" })
+    $localVer = Get-LocalVersion
+    $UpdateLabel.Text = "Local: v$localVer"
+    $UpdateRemoteLabel.Text = ""
+    $BtnDownloadUpdate.Visibility = "Hidden"
 
     $svcInstalled = $false
     try {
@@ -944,14 +1026,66 @@ $BtnApplyIPSet.Add_Click({
     }
 })
 
-$BtnToggleUpdate.Add_Click({
-    $flagFile = Join-Path $utilsDir "check_updates.enabled"
-    if (Test-Path $flagFile) {
-        Remove-Item $flagFile -Force
-    } else {
-        "enabled" | Out-File $flagFile -Encoding UTF8
+$script:latestRelease = $null
+
+$BtnCheckUpdate.Add_Click({
+    $UpdateRemoteLabel.Text = "Checking..."
+    $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+    $BtnCheckUpdate.IsEnabled = $false
+    $BtnDownloadUpdate.Visibility = "Hidden"
+
+    $release = Get-GitHubRelease
+    $script:latestRelease = $release
+
+    if (-not $release) {
+        $UpdateRemoteLabel.Text = "Failed to check (no releases or network error)"
+        $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        $BtnCheckUpdate.IsEnabled = $true
+        return
     }
-    Refresh-Settings
+
+    $remoteVer = $release.tag_name.TrimStart("v")
+    $localVer = Get-LocalVersion
+    $UpdateRemoteLabel.Text = "Remote: v$remoteVer"
+
+    if ($remoteVer -ne $localVer) {
+        $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
+        $BtnDownloadUpdate.Visibility = "Visible"
+        $BtnDownloadUpdate.Content = "Download v$remoteVer"
+    } else {
+        $UpdateRemoteLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+    }
+    $BtnCheckUpdate.IsEnabled = $true
+})
+
+$BtnDownloadUpdate.Add_Click({
+    if (-not $script:latestRelease) {
+        $SettingsStatus.Text = "No release info. Click Check first."
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        return
+    }
+
+    $zipUrl = $script:latestRelease.zipball_url
+    $ver = $script:latestRelease.tag_name
+
+    $SettingsStatus.Text = "Downloading $ver ..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+    $BtnDownloadUpdate.IsEnabled = $false
+    $BtnCheckUpdate.IsEnabled = $false
+
+    $result = Download-FlowCutterUpdate -ZipUrl $zipUrl -Version $ver
+
+    if ($result.Success) {
+        $SettingsStatus.Text = "Updated to $ver! ($($result.Copied) items) Restart FlowCutter to apply."
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+        $BtnDownloadUpdate.Visibility = "Hidden"
+        $UpdateRemoteLabel.Text = "Remote: $ver (downloaded)"
+    } else {
+        $SettingsStatus.Text = "Download failed: $($result.Error)"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+    }
+    $BtnDownloadUpdate.IsEnabled = $true
+    $BtnCheckUpdate.IsEnabled = $true
 })
 
 $BtnCheckStatus.Add_Click({
@@ -982,7 +1116,7 @@ $BtnRemoveService.Add_Click({
 })
 
 $BtnUpdateIPSet.Add_Click({
-    $url = "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/refs/heads/main/.service/ipset-service.txt"
+    $url = "https://raw.githubusercontent.com/heurist1c/FlowCutter/refs/heads/main/.service/ipset-service.txt"
     $outFile = Join-Path $listsDir "ipset-all.txt"
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -1004,7 +1138,7 @@ $BtnUpdateIPSet.Add_Click({
 })
 
 $BtnUpdateHosts.Add_Click({
-    $url = "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/refs/heads/main/.service/hosts"
+    $url = "https://raw.githubusercontent.com/heurist1c/FlowCutter/refs/heads/main/.service/hosts"
     $tempFile = Join-Path $env:TEMP "zapret_hosts.txt"
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
