@@ -269,7 +269,7 @@ $xamlStr = @'
                                                     <Border Background="Transparent" HorizontalAlignment="Right" Width="24">
                                                         <Path x:Name="Arrow" Data="M0,0 L5,5 L10,0" Stroke="#666666"
                                                               StrokeThickness="1.5" Fill="Transparent"/>
-                                                    </Grid>
+                                                    </Border>
                                                 </Grid>
                                             </ControlTemplate>
                                         </ToggleButton.Template>
@@ -333,8 +333,7 @@ $xamlStr = @'
         </Style>
     </Window.Resources>
 
-    <Grid>
-        <Grid.Margin>24,18,24,16</Grid.Margin>
+    <Grid Margin="24,18,24,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
