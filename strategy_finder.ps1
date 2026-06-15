@@ -239,6 +239,24 @@ $xamlStr = @'
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="CaretBrush" Value="#a29bfe"/>
         </Style>
+        <Style x:Key="DarkCombo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#16162a"/>
+            <Setter Property="Foreground" Value="#ccccee"/>
+            <Setter Property="BorderBrush" Value="#2a2a44"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+        </Style>
+        <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#1e1e36"/>
+            <Setter Property="Foreground" Value="#ccccee"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#2d2d44"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -271,7 +289,7 @@ $xamlStr = @'
             <!-- Tab content -->
             <Border Grid.Row="2" Background="#12121f" CornerRadius="0,10,10,10"
                     BorderThickness="1" BorderBrush="#2a2a44" Margin="0,0,0,12">
-
+                <Grid>
                 <!-- TAB: Strategy Finder -->
                 <Grid Name="PanelScan" Visibility="Visible">
                     <Grid Margin="16">
@@ -428,8 +446,8 @@ $xamlStr = @'
                                                Foreground="#ccccee" Margin="0,0,0,6"/>
                                     <TextBlock Name="GameFilterLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,6"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <ComboBox Name="GameFilterCombo" Width="160" Background="#1e1e36"
-                                                  Foreground="#ccccee" BorderBrush="#2a2a44" FontSize="11">
+                                        <ComboBox Name="GameFilterCombo" Width="160" Style="{StaticResource DarkCombo}"
+                                                  ItemContainerStyle="{StaticResource DarkComboItem}">
                                             <ComboBoxItem Content="Disabled"/>
                                             <ComboBoxItem Content="TCP + UDP"/>
                                             <ComboBoxItem Content="TCP only"/>
@@ -448,8 +466,8 @@ $xamlStr = @'
                                                Foreground="#ccccee" Margin="0,0,0,6"/>
                                     <TextBlock Name="IPSetLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,6"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <ComboBox Name="IPSetCombo" Width="160" Background="#1e1e36"
-                                                  Foreground="#ccccee" BorderBrush="#2a2a44" FontSize="11">
+                                        <ComboBox Name="IPSetCombo" Width="160" Style="{StaticResource DarkCombo}"
+                                                  ItemContainerStyle="{StaticResource DarkComboItem}">
                                             <ComboBoxItem Content="None"/>
                                             <ComboBoxItem Content="Loaded"/>
                                             <ComboBoxItem Content="Any"/>
@@ -521,6 +539,7 @@ $xamlStr = @'
                             </Border>
                         </StackPanel>
                     </Grid>
+                </Grid>
                 </Grid>
             </Border>
 
@@ -601,16 +620,20 @@ $TabSettings.Add_Checked({
 })
 
 # --- Domain Management ---
-$bypassFile  = Join-Path $listsDir "list-general-user.txt"
-$excludeFile = Join-Path $listsDir "list-exclude-user.txt"
+$bypassFile     = Join-Path $listsDir "list-general-user.txt"
+$excludeFile    = Join-Path $listsDir "list-exclude-user.txt"
+$builtinBypass  = Join-Path $listsDir "list-general.txt"
+$builtinExclude = Join-Path $listsDir "list-exclude.txt"
 $script:bypassDomains  = [System.Collections.ArrayList]::new()
 $script:excludeDomains = [System.Collections.ArrayList]::new()
 
 function Refresh-DomainLists {
     $script:bypassDomains.Clear()
     $script:excludeDomains.Clear()
-    foreach ($d in Read-DomainsFromFile $bypassFile)  { [void]$script:bypassDomains.Add($d) }
-    foreach ($d in Read-DomainsFromFile $excludeFile) { [void]$script:excludeDomains.Add($d) }
+    foreach ($d in Read-DomainsFromFile $builtinBypass)  { [void]$script:bypassDomains.Add($d) }
+    foreach ($d in Read-DomainsFromFile $bypassFile)      { [void]$script:bypassDomains.Add($d) }
+    foreach ($d in Read-DomainsFromFile $builtinExclude) { [void]$script:excludeDomains.Add($d) }
+    foreach ($d in Read-DomainsFromFile $excludeFile)     { [void]$script:excludeDomains.Add($d) }
     $BypassList.ItemsSource = $null
     $BypassList.ItemsSource = $script:bypassDomains
     $ExcludeList.ItemsSource = $null
@@ -624,7 +647,8 @@ $BtnAddBypass.Add_Click({
     if ($domain -eq '' -or $domain -like '#*') { return }
     if ($script:bypassDomains -contains $domain) { return }
     [void]$script:bypassDomains.Add($domain)
-    Write-DomainsToFile $bypassFile $script:bypassDomains
+    $userOnly = @($script:bypassDomains | Where-Object { $_ -notin (Read-DomainsFromFile $builtinBypass) })
+    Write-DomainsToFile $bypassFile $userOnly
     $DomainInput.Text = ''
     Refresh-DomainLists
 })
@@ -634,7 +658,8 @@ $BtnAddExclude.Add_Click({
     if ($domain -eq '' -or $domain -like '#*') { return }
     if ($script:excludeDomains -contains $domain) { return }
     [void]$script:excludeDomains.Add($domain)
-    Write-DomainsToFile $excludeFile $script:excludeDomains
+    $userOnly = @($script:excludeDomains | Where-Object { $_ -notin (Read-DomainsFromFile $builtinExclude) })
+    Write-DomainsToFile $excludeFile $userOnly
     $DomainInput.Text = ''
     Refresh-DomainLists
 })
@@ -643,7 +668,8 @@ $BtnRemoveBypass.Add_Click({
     $sel = $BypassList.SelectedItem
     if ($sel) {
         [void]$script:bypassDomains.Remove($sel)
-        Write-DomainsToFile $bypassFile $script:bypassDomains
+        $userOnly = @($script:bypassDomains | Where-Object { $_ -notin (Read-DomainsFromFile $builtinBypass) })
+        Write-DomainsToFile $bypassFile $userOnly
         Refresh-DomainLists
     }
 })
@@ -652,7 +678,8 @@ $BtnRemoveExclude.Add_Click({
     $sel = $ExcludeList.SelectedItem
     if ($sel) {
         [void]$script:excludeDomains.Remove($sel)
-        Write-DomainsToFile $excludeFile $script:excludeDomains
+        $userOnly = @($script:excludeDomains | Where-Object { $_ -notin (Read-DomainsFromFile $builtinExclude) })
+        Write-DomainsToFile $excludeFile $userOnly
         Refresh-DomainLists
     }
 })
