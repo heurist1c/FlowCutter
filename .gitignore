@@ -1,0 +1,28 @@
+# User-generated lists
+/lists/list-general-user.txt
+/lists/list-exclude-user.txt
+/lists/ipset-exclude-user.txt
+/lists/ipset-all.txt.backup
+
+# Test results
+/utils/test results/
+
+# Runtime flags
+/utils/game_filter.enabled
+/utils/check_updates.enabled
+
+# IDE
+.vscode/
+.idea/
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Build
+/build/
+*.zip
+*.7z
+*.rar
