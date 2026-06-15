@@ -32,50 +32,61 @@ function Start-BatHidden {
 function Start-WinwsHidden {
     param([string]$BatPath, [string]$WorkDir)
     $rawLines = Get-Content $BatPath -ErrorAction SilentlyContinue
-    if (-not $rawLines) { return }
+    if (-not $rawLines) { return $null }
+
+    $binPath = Join-Path $WorkDir "bin"
+    $listsPath = Join-Path $WorkDir "lists"
+
+    $prepLines = @()
+    $prepLines += "@echo off"
+    $prepLines += "cd /d `"$WorkDir`""
+    $prepLines += "call `"$WorkDir\service.bat`" status_zapret"
+    $prepLines += "call `"$WorkDir\service.bat`" check_updates"
+    $prepLines += "call `"$WorkDir\service.bat`" load_game_filter"
+    $prepLines += "call `"$WorkDir\service.bat`" load_user_lists"
 
     $inCommand = $false
     $cmdParts = @()
     foreach ($line in $rawLines) {
         $trimmed = $line.Trim()
         if ($trimmed -match 'winws\.exe') {
-            $afterExe = $trimmed -replace '.*winws\.exe\s*', ''
-            $afterExe = $afterExe -replace '^\s*/min\s*', ''
+            $afterExe = $trimmed -replace '.*winws\.exe\s*', '' -replace '^\s*/min\s*', ''
             $cmdParts += $afterExe
             $inCommand = $true
             continue
         }
         if ($inCommand) {
-            if ($trimmed.EndsWith('^')) {
-                $cmdParts += $trimmed.TrimEnd('^').Trim()
-            } else {
-                $cmdParts += $trimmed
-                $inCommand = $false
+            if ($trimmed) {
+                if ($trimmed.EndsWith('^')) { $cmdParts += $trimmed.TrimEnd('^').Trim() }
+                else { $cmdParts += $trimmed; $inCommand = $false }
             }
         }
     }
 
-    if ($cmdParts.Count -eq 0) { return }
+    if ($cmdParts.Count -eq 0) { return $null }
 
     $fullCmd = $cmdParts -join ' '
     $fullCmd = $fullCmd -replace '%~dp0', "$WorkDir\"
-    $binPath = Join-Path $WorkDir "bin"
-    $listsPath = Join-Path $WorkDir "lists"
     $fullCmd = $fullCmd -replace '%BIN%', $binPath
     $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
     $fullCmd = $fullCmd -replace '%GameFilterTCP%', '12'
     $fullCmd = $fullCmd -replace '%GameFilterUDP%', '12'
 
-    $exe = Join-Path $binPath "winws.exe"
+    foreach ($p in $prepLines) { "$p" | Out-File "$env:TEMP\flowcutter_launch.bat" -Encoding ASCII -Append }
+    "`"$binPath\winws.exe`" $fullCmd" | Out-File "$env:TEMP\flowcutter_launch.bat" -Encoding ASCII -Append
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $exe
-    $psi.Arguments = $fullCmd
+    $psi.FileName = "cmd.exe"
+    $psi.Arguments = "/c `"$env:TEMP\flowcutter_launch.bat`""
     $psi.WorkingDirectory = $binPath
     $psi.CreateNoWindow = $true
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
-    try { [void][System.Diagnostics.Process]::Start($psi) } catch {}
+    try {
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        return $proc
+    } catch { return $null }
 }
 
 function Test-TargetUrl {
@@ -255,21 +266,25 @@ $xamlStr = @'
                             <Border x:Name="Bd" Background="#0e0e0e" BorderBrush="#222222" BorderThickness="1"
                                     CornerRadius="4" Padding="{TemplateBinding Padding}">
                                 <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="24"/>
+                                    </Grid.ColumnDefinitions>
                                     <ContentPresenter IsHitTestVisible="False"
+                                                      Grid.Column="0"
                                                       Content="{TemplateBinding SelectionBoxItem}"
                                                       ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                                       Margin="{TemplateBinding Padding}"
                                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                                       HorizontalAlignment="Left"/>
-                                    <ToggleButton IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                    <ToggleButton Grid.Column="1"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                                   Focusable="False" IsTabStop="False">
                                         <ToggleButton.Template>
                                             <ControlTemplate TargetType="ToggleButton">
-                                                <Grid>
-                                                    <Border Background="Transparent" HorizontalAlignment="Right" Width="24">
-                                                        <Path x:Name="Arrow" Data="M0,0 L5,5 L10,0" Stroke="#666666"
-                                                              StrokeThickness="1.5" Fill="Transparent"/>
-                                                    </Border>
+                                                <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <Path x:Name="Arrow" Data="M0,0 L5,4 L10,0" Stroke="#666666"
+                                                          StrokeThickness="1.5" Fill="Transparent"/>
                                                 </Grid>
                                             </ControlTemplate>
                                         </ToggleButton.Template>
@@ -432,6 +447,8 @@ $xamlStr = @'
                     <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Name="BtnFindBest" Content="Find Best" Style="{StaticResource BtnPrimary}"
                                 Margin="0,0,8,0" MinWidth="110"/>
+                        <Button Name="BtnStop" Content="Stop" Style="{StaticResource BtnDanger}"
+                                Margin="0,0,8,0" MinWidth="80" IsEnabled="False"/>
                         <Button Name="BtnLaunch" Content="Launch Selected" Style="{StaticResource BtnAccent}"
                                 MinWidth="100" IsEnabled="False"/>
                     </StackPanel>
@@ -642,6 +659,7 @@ $ProgressFill      = $window.FindName("ProgressFill")
 $ProgressText      = $window.FindName("ProgressText")
 $BtnFindBest       = $window.FindName("BtnFindBest")
 $BtnLaunch         = $window.FindName("BtnLaunch")
+$BtnStop           = $window.FindName("BtnStop")
 $BtnClose          = $window.FindName("BtnClose")
 $StrategyCombo     = $window.FindName("StrategyCombo")
 $BtnRunStrategy    = $window.FindName("BtnRunStrategy")
@@ -677,6 +695,7 @@ $InstalledStrategyLabel = $window.FindName("InstalledStrategyLabel")
 $SettingsStatus    = $window.FindName("SettingsStatus")
 
 $script:selectedBat = $null
+$script:winwsProcess = $null
 
 # --- Populate Strategy Combo ---
 $script:batFiles = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
@@ -714,10 +733,20 @@ $TabSettings.Add_Checked({
 $BtnRunStrategy.Add_Click({
     $idx = $StrategyCombo.SelectedIndex
     if ($idx -ge 0 -and $idx -lt $script:batFiles.Count) {
-        $bat = $script:batFiles[$idx]
         Stop-Winws
-        Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
-        $StatusText.Text = "Running: $($bat.Name.Replace('.bat',''))"
+        $bat = $script:batFiles[$idx]
+        $proc = Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
+        $script:winwsProcess = $proc
+        Start-Sleep -Seconds 1
+        $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+        if ($running) {
+            $StatusText.Text = "Running: $($bat.Name.Replace('.bat',''))"
+            $BtnStop.IsEnabled = $true
+            $BtnLaunch.IsEnabled = $false
+        } else {
+            $StatusText.Text = "Failed to start: $($bat.Name.Replace('.bat',''))"
+            $BtnStop.IsEnabled = $false
+        }
     }
 })
 
@@ -956,6 +985,7 @@ $BtnUpdateHosts.Add_Click({
 function Start-Scan {
     $BtnFindBest.IsEnabled = $false
     $BtnLaunch.IsEnabled = $false
+    $BtnStop.IsEnabled = $false
     $ResultsGrid.ItemsSource = $null
     $ProgressFill.Width = 0
     $ProgressText.Text = "0%"
@@ -1112,9 +1142,26 @@ $BtnClose.Add_Click({ $window.Close() })
 $BtnLaunch.Add_Click({
     if ($script:selectedBat) {
         Stop-Winws
-        Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+        $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+        $script:winwsProcess = $proc
+        Start-Sleep -Seconds 1
+        $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+        if ($running) {
+            $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+            $BtnStop.IsEnabled = $true
+            $BtnLaunch.IsEnabled = $false
+        } else {
+            $StatusText.Text = "Failed to start: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+            $BtnStop.IsEnabled = $false
+        }
     }
+})
+
+$BtnStop.Add_Click({
+    Stop-Winws
+    $script:winwsProcess = $null
+    $StatusText.Text = "Stopped"
+    $BtnStop.IsEnabled = $false
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
@@ -1127,6 +1174,21 @@ $ResultsGrid.Add_SelectionChanged({
     }
 })
 
+# --- Status Polling Timer ---
+$timer = New-Object System.Windows.Threading.DispatcherTimer
+$timer.Interval = [TimeSpan]::FromSeconds(2)
+$timer.Add_Tick({
+    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+    if (-not $running -and $BtnStop.IsEnabled) {
+        $BtnStop.IsEnabled = $false
+        $StatusText.Text = "winws stopped"
+    } elseif ($running -and -not $BtnStop.IsEnabled -and $script:selectedBat) {
+        $BtnStop.IsEnabled = $true
+    }
+})
+$timer.Start()
+
 # --- Init ---
 Refresh-DomainLists
 $null = $window.ShowDialog()
+$timer.Stop()
