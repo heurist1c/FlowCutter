@@ -1380,7 +1380,7 @@ function Start-Scan {
             Push-UI -Pct $pct -Text "[$idx/$total] $($bat.Name)..."
 
             Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 200
 
             $binPath = Join-Path $rootDir "bin"
             $listsPath = Join-Path $rootDir "lists"
@@ -1413,27 +1413,33 @@ function Start-Scan {
                     try { [void][System.Diagnostics.Process]::Start($psi) } catch {}
                 }
             }
-            Start-Sleep -Seconds 6
 
-            $dOk = 0
+            $waited = 0
+            while ($waited -lt 3000) {
+                Start-Sleep -Milliseconds 200
+                $waited += 200
+                if (Get-Process -Name "winws" -EA SilentlyContinue) { break }
+            }
+            Start-Sleep -Milliseconds 500
+
+            $dOk = 0; $yOk = 0
             foreach ($u in @("https://discord.com","https://gateway.discord.gg")) {
                 try {
-                    $ca = @("-I","-s","-m","5","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
+                    $ca = @("-I","-s","-m","3","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
                     $o = & curl.exe @ca 2>&1 | Out-String
                     if ($LASTEXITCODE -eq 0 -and $o.Trim() -match '^\d{3}$') { $dOk++ }
                 } catch {}
             }
-            $yOk = 0
             foreach ($u in @("https://www.youtube.com","https://youtu.be")) {
                 try {
-                    $ca = @("-I","-s","-m","5","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
+                    $ca = @("-I","-s","-m","3","-o","NUL","-w","%{http_code}","--show-error","--http1.1",$u)
                     $o = & curl.exe @ca 2>&1 | Out-String
                     if ($LASTEXITCODE -eq 0 -and $o.Trim() -match '^\d{3}$') { $yOk++ }
                 } catch {}
             }
 
             Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 200
 
             $dScore = [math]::Round(($dOk / 2) * 100)
             $yScore = [math]::Round(($yOk / 2) * 100)
