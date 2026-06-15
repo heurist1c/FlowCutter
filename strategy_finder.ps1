@@ -1277,31 +1277,76 @@ $BtnCheckStatus.Add_Click({
 })
 
 $BtnInstallService.Add_Click({
-    $SettingsStatus.Text = "Opening service installer..."
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
-
-    $batPath = Join-Path $rootDir "service.bat"
-    if (-not (Test-Path $batPath)) {
-        $SettingsStatus.Text = "service.bat not found"
+    $idx = $StrategyCombo.SelectedIndex
+    if ($idx -lt 0 -or $idx -ge $script:batFiles.Count) {
+        $SettingsStatus.Text = "Select a strategy in the Strategy Finder tab first"
         $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
         return
     }
 
+    $bat = $script:batFiles[$idx]
+    $SettingsStatus.Text = "Installing service: $($bat.Name.Replace('.bat',''))..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+
     Stop-Winws
 
-    try {
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "cmd.exe"
-        $psi.Arguments = "/c `"$batPath`""
-        $psi.WorkingDirectory = $rootDir
-        $psi.UseShellExecute = $true
-        $psi.Verb = "runas"
-        [void][System.Diagnostics.Process]::Start($psi)
-        $SettingsStatus.Text = "service.bat opened. Select 'Install Service' from its menu."
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
-    } catch {
-        $SettingsStatus.Text = "Failed to open service.bat: $($_.Exception.Message)"
+    $binPath = Join-Path $rootDir "bin\"
+    $listsPath = Join-Path $rootDir "lists\"
+
+    $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
+    $inCmd = $false; $parts = @()
+    foreach ($l in $rawLines) {
+        $t = $l.Trim()
+        if ($t -match 'winws\.exe') {
+            $after = $t -replace '.*winws\.exe["\s]*', ''
+            $parts += $after; $inCmd = $true; continue
+        }
+        if ($inCmd) {
+            if ($t.EndsWith('^')) { $parts += $t.TrimEnd('^').Trim() }
+            else { $parts += $t; $inCmd = $false }
+        }
+    }
+
+    if ($parts.Count -eq 0) {
+        $SettingsStatus.Text = "Could not parse strategy: $($bat.Name)"
         $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        return
+    }
+
+    $gf = Get-GameFilterValues
+    $cmd = ($parts -join ' ') -replace '%BIN%', $binPath -replace '%LISTS%', $listsPath -replace '%GameFilterTCP%', $gf.TCP -replace '%GameFilterUDP%', $gf.UDP
+
+    $prepBat = "$env:TEMP\flowcutter_install_prep.bat"
+    $prepContent = "@echo off`r`ncd /d `"$rootDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
+    [System.IO.File]::WriteAllText($prepBat, $prepContent, [System.Text.Encoding]::Default)
+    try {
+        $prep = Start-Process cmd.exe "/c `"$prepBat`"" -WindowStyle Hidden -WorkingDirectory $rootDir -Wait -PassThru
+        if (-not $prep.HasExited) { $prep.WaitForExit(8000) }
+        if (-not $prep.HasExited) { $prep.Kill() }
+    } catch {}
+
+    $exe = Join-Path $binPath "winws.exe"
+    $svcName = "zapret"
+    $strategyName = $bat.Name.Replace('.bat','')
+
+    & net stop $svcName 2>&1 | Out-Null
+    & sc delete $svcName 2>&1 | Out-Null
+
+    $scResult = & sc create $svcName binPath= "`"$exe`" $cmd" DisplayName= "zapret" start= auto 2>&1 | Out-String
+
+    & sc description $svcName "Zapret DPI bypass software" 2>&1 | Out-Null
+    & sc start $svcName 2>&1 | Out-Null
+
+    & reg add "HKLM\System\CurrentControlSet\Services\$svcName" /v zapret-discord-youtube /t REG_SZ /d "$strategyName" /f 2>&1 | Out-Null
+
+    Refresh-Settings
+
+    if ($scResult -match "SUCCESS") {
+        $SettingsStatus.Text = "Service installed: $strategyName"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+    } else {
+        $SettingsStatus.Text = "Install result: $($scResult.Trim())"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
     }
 })
 
