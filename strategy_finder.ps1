@@ -159,11 +159,11 @@ $xamlStr = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="FlowCutter" Width="880" Height="680"
-    WindowStartupLocation="CenterScreen" Background="#0f0f1a">
+    WindowStartupLocation="CenterScreen" Background="#0a0a0a">
     <Window.Resources>
-        <Style x:Key="BtnPurple" TargetType="Button">
-            <Setter Property="Background" Value="#6c5ce7"/>
-            <Setter Property="Foreground" Value="#ffffff"/>
+        <Style x:Key="BtnPrimary" TargetType="Button">
+            <Setter Property="Background" Value="#2a2a2a"/>
+            <Setter Property="Foreground" Value="#999999"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,8"/>
@@ -178,33 +178,35 @@ $xamlStr = @'
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#7c6cf7"/>
+                                <Setter TargetName="bd" Property="Background" Value="#3a3a3a"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#5b4cd6"/>
+                                <Setter TargetName="bd" Property="Background" Value="#1a1a1a"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Background" Value="#2d2d44"/>
-                                <Setter Property="Foreground" Value="#555570"/>
+                                <Setter TargetName="bd" Property="Background" Value="#161616"/>
+                                <Setter Property="Foreground" Value="#444444"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="BtnGreen" TargetType="Button" BasedOn="{StaticResource BtnPurple}">
-            <Setter Property="Background" Value="#00b894"/>
+        <Style x:Key="BtnAccent" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#1e3a2e"/>
+            <Setter Property="Foreground" Value="#6a9a7a"/>
         </Style>
-        <Style x:Key="BtnRed" TargetType="Button" BasedOn="{StaticResource BtnPurple}">
-            <Setter Property="Background" Value="#d63031"/>
+        <Style x:Key="BtnDanger" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#3a1e1e"/>
+            <Setter Property="Foreground" Value="#9a6a6a"/>
         </Style>
-        <Style x:Key="BtnDark" TargetType="Button" BasedOn="{StaticResource BtnPurple}">
-            <Setter Property="Background" Value="#2d2d44"/>
-            <Setter Property="Foreground" Value="#aaaacc"/>
+        <Style x:Key="BtnMuted" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#1a1a1a"/>
+            <Setter Property="Foreground" Value="#666666"/>
         </Style>
         <Style x:Key="TabBtn" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#666680"/>
+            <Setter Property="Foreground" Value="#444444"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="20,10"/>
@@ -219,11 +221,11 @@ $xamlStr = @'
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#1e1e36"/>
-                                <Setter Property="Foreground" Value="#a29bfe"/>
+                                <Setter TargetName="bd" Property="Background" Value="#111111"/>
+                                <Setter Property="Foreground" Value="#888888"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#16162a"/>
+                                <Setter TargetName="bd" Property="Background" Value="#0e0e0e"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -231,29 +233,29 @@ $xamlStr = @'
             </Setter>
         </Style>
         <Style x:Key="InputBox" TargetType="TextBox">
-            <Setter Property="Background" Value="#16162a"/>
-            <Setter Property="Foreground" Value="#ccccee"/>
-            <Setter Property="BorderBrush" Value="#2a2a44"/>
+            <Setter Property="Background" Value="#0e0e0e"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="BorderBrush" Value="#1e1e1e"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="CaretBrush" Value="#a29bfe"/>
+            <Setter Property="CaretBrush" Value="#666666"/>
         </Style>
         <Style x:Key="DarkCombo" TargetType="ComboBox">
-            <Setter Property="Background" Value="#16162a"/>
-            <Setter Property="Foreground" Value="#ccccee"/>
-            <Setter Property="BorderBrush" Value="#2a2a44"/>
+            <Setter Property="Background" Value="#0e0e0e"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="BorderBrush" Value="#1e1e1e"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="8,5"/>
         </Style>
         <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#1e1e36"/>
-            <Setter Property="Foreground" Value="#ccccee"/>
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="Foreground" Value="#888888"/>
             <Setter Property="Padding" Value="8,5"/>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#2d2d44"/>
+                    <Setter Property="Background" Value="#1e1e1e"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -264,13 +266,13 @@ $xamlStr = @'
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
                         <Grid>
-                            <Border Background="#1a1a2e" CornerRadius="4"/>
+                            <Border Background="#0e0e0e" CornerRadius="4"/>
                             <Track x:Name="PART_Track" IsDirectionReversed="True">
                                 <Track.Thumb>
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#3a3a55" CornerRadius="4" Margin="1"/>
+                                                <Border Background="#2a2a2a" CornerRadius="4" Margin="1"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -290,294 +292,300 @@ $xamlStr = @'
     </Window.Resources>
 
     <Grid>
-        <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Color="#0f0f1a" Offset="0"/>
-                <GradientStop Color="#1a1a2e" Offset="1"/>
-            </LinearGradientBrush>
-        </Grid.Background>
-        <Grid Margin="24,18,24,16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <Grid.Margin>24,18,24,16</Grid.Margin>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- Header -->
-            <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                <TextBlock Text="FlowCutter" FontSize="26" FontWeight="Bold" Foreground="#6c5ce7"/>
-            </StackPanel>
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="FlowCutter" FontSize="26" FontWeight="Bold" Foreground="#666666"/>
+        </StackPanel>
 
-            <!-- Tabs -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,0">
-                <RadioButton Name="TabScan" Content="Strategy Finder" Style="{StaticResource TabBtn}" IsChecked="True"/>
-                <RadioButton Name="TabDomains" Content="Domains" Style="{StaticResource TabBtn}"/>
-                <RadioButton Name="TabSettings" Content="Settings" Style="{StaticResource TabBtn}"/>
-            </StackPanel>
+        <!-- Tabs -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal">
+            <RadioButton Name="TabScan" Content="Strategy Finder" Style="{StaticResource TabBtn}" IsChecked="True"/>
+            <RadioButton Name="TabDomains" Content="Domains" Style="{StaticResource TabBtn}"/>
+            <RadioButton Name="TabSettings" Content="Settings" Style="{StaticResource TabBtn}"/>
+        </StackPanel>
 
-            <!-- Tab content -->
-            <Border Grid.Row="2" Background="#12121f" CornerRadius="0,10,10,10"
-                    BorderThickness="1" BorderBrush="#2a2a44" Margin="0,0,0,12">
-                <Grid>
-                <!-- TAB: Strategy Finder -->
-                <Grid Name="PanelScan" Visibility="Visible">
-                    <Grid Margin="16">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#16162a" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
-                            <TextBlock Name="StatusText" Text="Click 'Find Best' to scan all strategies"
-                                       FontSize="12" Foreground="#8888aa"/>
-                        </Border>
-                        <DataGrid Grid.Row="1" Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                                  Background="Transparent" Foreground="#ccccee"
-                                  GridLinesVisibility="None" BorderThickness="0"
-                                  RowBackground="Transparent" AlternatingRowBackground="#16162e"
-                                  HeadersVisibility="Column" CanUserSortColumns="True"
-                                  SelectionMode="Single">
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#1e1e36"/>
-                                    <Setter Property="Foreground" Value="#7777aa"/>
-                                    <Setter Property="Padding" Value="10,6"/>
-                                    <Setter Property="FontSize" Value="11"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                    <Setter Property="BorderBrush" Value="#2a2a44"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="36"/>
-                                <DataGridTextColumn Header="Strategy" Binding="{Binding StratName}" Width="*"/>
-                                <DataGridTextColumn Header="Discord" Binding="{Binding DiscordDisplay}" Width="115"/>
-                                <DataGridTextColumn Header="YouTube" Binding="{Binding YouTubeDisplay}" Width="115"/>
-                                <DataGridTextColumn Header="Score" Binding="{Binding ScoreDisplay}" Width="68"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        <Grid Grid.Row="2" Margin="0,10,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Background="#1a1a30" CornerRadius="5" Height="8"
-                                    Margin="0,0,10,0" ClipToBounds="True">
-                                <Border x:Name="ProgressFill" Background="#6c5ce7" CornerRadius="5"
-                                        HorizontalAlignment="Left" Width="0" Height="8"/>
-                            </Border>
-                            <TextBlock Grid.Column="1" Name="ProgressText" Text="0%"
-                                       FontSize="11" Foreground="#666680" VerticalAlignment="Center"/>
-                        </Grid>
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Name="BtnFindBest" Content="Find Best" Style="{StaticResource BtnPurple}"
-                                    Margin="0,0,8,0" MinWidth="110"/>
-                            <Button Name="BtnLaunch" Content="Launch" Style="{StaticResource BtnGreen}"
-                                    Margin="0,0,0,0" MinWidth="100" IsEnabled="False"/>
+        <!-- Tab content -->
+        <Border Grid.Row="2" Background="#0e0e0e" CornerRadius="0,10,10,10"
+                BorderThickness="1" BorderBrush="#1a1a1a" Margin="0,0,0,12">
+            <Grid>
+            <!-- TAB: Strategy Finder -->
+            <Grid Name="PanelScan" Visibility="Visible">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Quick Launch -->
+                    <Border Grid.Row="0" Background="#141414" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Strategy:" FontSize="12" Foreground="#555555"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox Name="StrategyCombo" Width="340" Style="{StaticResource DarkCombo}"
+                                      ItemContainerStyle="{StaticResource DarkComboItem}"/>
+                            <Button Name="BtnRunStrategy" Content="Launch" Style="{StaticResource BtnAccent}"
+                                    Margin="10,0,0,0" MinWidth="80"/>
                         </StackPanel>
-                    </Grid>
-                </Grid>
+                    </Border>
 
-                <!-- TAB: Domains -->
-                <Grid Name="PanelDomains" Visibility="Hidden">
-                    <Grid Margin="16">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                    <!-- Status -->
+                    <Border Grid.Row="1" Background="#141414" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                        <TextBlock Name="StatusText" Text="Select a strategy or click Find Best to scan"
+                                   FontSize="12" Foreground="#555555"/>
+                    </Border>
 
-                        <!-- Add domain input -->
-                        <TextBlock Grid.Row="0" Text="Domain:" FontSize="12" Foreground="#8888aa" Margin="0,0,0,6"/>
-                        <Grid Grid.Row="1" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Name="DomainInput" Style="{StaticResource InputBox}"
-                                     Margin="0,0,8,0" VerticalContentAlignment="Center">
-                                <TextBox.ToolTip>Enter domain like: example.com</TextBox.ToolTip>
-                            </TextBox>
-                            <Button Grid.Column="1" Name="BtnAddBypass" Content="+ Bypass" Style="{StaticResource BtnGreen}"
-                                    Margin="0,0,8,0"/>
-                            <Button Grid.Column="2" Name="BtnAddExclude" Content="+ Exclude" Style="{StaticResource BtnRed}"/>
-                        </Grid>
+                    <!-- Results -->
+                    <DataGrid Grid.Row="2" Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="Transparent" Foreground="#777777"
+                              GridLinesVisibility="None" BorderThickness="0"
+                              RowBackground="Transparent" AlternatingRowBackground="#0c0c0c"
+                              HeadersVisibility="Column" CanUserSortColumns="True"
+                              SelectionMode="Single">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#111111"/>
+                                <Setter Property="Foreground" Value="#444444"/>
+                                <Setter Property="Padding" Value="10,6"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="BorderBrush" Value="#1a1a1a"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="36"/>
+                            <DataGridTextColumn Header="Strategy" Binding="{Binding StratName}" Width="*"/>
+                            <DataGridTextColumn Header="Discord" Binding="{Binding DiscordDisplay}" Width="115"/>
+                            <DataGridTextColumn Header="YouTube" Binding="{Binding YouTubeDisplay}" Width="115"/>
+                            <DataGridTextColumn Header="Score" Binding="{Binding ScoreDisplay}" Width="68"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
 
-                        <!-- Bypass list -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <DockPanel Grid.Column="0">
-                                <TextBlock DockPanel.Dock="Top" Text="Bypass (zapret ON for these)"
-                                           FontSize="11" Foreground="#00b894" Margin="0,0,0,4"/>
-                                <ListBox Name="BypassList"
-                                         BorderThickness="0" Background="Transparent"
-                                         Foreground="#ccccee" FontSize="12"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                            </DockPanel>
-                            <Button Grid.Column="1" Name="BtnRemoveBypass" Content="x" Style="{StaticResource BtnRed}"
-                                    Margin="8,22,0,0" Width="30" Height="30" VerticalAlignment="Top"
-                                    FontSize="14" Padding="0"/>
-                        </Grid>
-
-                        <GridSplitter Grid.Row="3" Height="10" HorizontalAlignment="Stretch"
-                                      Background="Transparent" Margin="0,4,0,4"/>
-
-                        <!-- Exclude list -->
-                        <Grid Grid.Row="4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <DockPanel Grid.Column="0">
-                                <TextBlock DockPanel.Dock="Top" Text="Exclude (zapret OFF for these)"
-                                           FontSize="11" Foreground="#d63031" Margin="0,0,0,4"/>
-                                <ListBox Name="ExcludeList"
-                                         BorderThickness="0" Background="Transparent"
-                                         Foreground="#ccccee" FontSize="12"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                            </DockPanel>
-                            <Button Grid.Column="1" Name="BtnRemoveExclude" Content="x" Style="{StaticResource BtnRed}"
-                                    Margin="8,22,0,0" Width="30" Height="30" VerticalAlignment="Top"
-                                    FontSize="14" Padding="0"/>
-                        </Grid>
-
-                        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                            <Button Name="BtnRefreshDomains" Content="Refresh" Style="{StaticResource BtnDark}"/>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
-
-                <!-- TAB: Settings -->
-                <Grid Name="PanelSettings" Visibility="Hidden">
-                    <Grid Margin="16">
+                    <!-- Progress -->
+                    <Grid Grid.Row="3" Margin="0,10,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-
-                        <!-- Left column: Settings -->
-                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                            <TextBlock Text="Settings" FontSize="15" FontWeight="SemiBold"
-                                       Foreground="#ccccee" Margin="0,0,0,12"/>
-
-                            <!-- Game Filter -->
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="Game Filter" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <TextBlock Name="GameFilterLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,6"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <ComboBox Name="GameFilterCombo" Width="160" Style="{StaticResource DarkCombo}"
-                                                  ItemContainerStyle="{StaticResource DarkComboItem}">
-                                            <ComboBoxItem Content="Disabled"/>
-                                            <ComboBoxItem Content="TCP + UDP"/>
-                                            <ComboBoxItem Content="TCP only"/>
-                                            <ComboBoxItem Content="UDP only"/>
-                                        </ComboBox>
-                                        <Button Name="BtnApplyGame" Content="Apply" Style="{StaticResource BtnPurple}"
-                                                Margin="8,0,0,0"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- IPSet Filter -->
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="IPSet Filter" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <TextBlock Name="IPSetLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,6"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <ComboBox Name="IPSetCombo" Width="160" Style="{StaticResource DarkCombo}"
-                                                  ItemContainerStyle="{StaticResource DarkComboItem}">
-                                            <ComboBoxItem Content="None"/>
-                                            <ComboBoxItem Content="Loaded"/>
-                                            <ComboBoxItem Content="Any"/>
-                                        </ComboBox>
-                                        <Button Name="BtnApplyIPSet" Content="Apply" Style="{StaticResource BtnPurple}"
-                                                Margin="8,0,0,0"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Auto Update -->
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="Auto Update Check" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,6"/>
-                                    <Button Name="BtnToggleUpdate" Style="{StaticResource BtnPurple}" MinWidth="120"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Right column: Service -->
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="Service" FontSize="15" FontWeight="SemiBold"
-                                       Foreground="#ccccee" Margin="0,0,0,12"/>
-
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="zapret Service" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <TextBlock Name="ServiceLabel" FontSize="11" Foreground="#8888aa" Margin="0,0,0,8"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Name="BtnInstallService" Content="Install" Style="{StaticResource BtnGreen}"
-                                                Margin="0,0,8,0" MinWidth="80"/>
-                                        <Button Name="BtnRemoveService" Content="Remove" Style="{StaticResource BtnRed}"
-                                                Margin="0,0,8,0" MinWidth="80"/>
-                                        <Button Name="BtnCheckStatus" Content="Status" Style="{StaticResource BtnDark}"
-                                                MinWidth="80"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="Update Lists" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Name="BtnUpdateIPSet" Content="Update IPSet" Style="{StaticResource BtnPurple}"
-                                                Margin="0,0,8,0"/>
-                                        <Button Name="BtnUpdateHosts" Content="Update Hosts" Style="{StaticResource BtnPurple}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="Installed Strategy" FontSize="12" FontWeight="SemiBold"
-                                               Foreground="#ccccee" Margin="0,0,0,6"/>
-                                    <TextBlock Name="InstalledStrategyLabel" FontSize="11" Foreground="#8888aa"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Background="#16162a" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Name="SettingsStatus" FontSize="11" Foreground="#8888aa"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                        <Border Grid.Column="0" Background="#0e0e0e" CornerRadius="5" Height="8"
+                                Margin="0,0,10,0" ClipToBounds="True">
+                            <Border x:Name="ProgressFill" Background="#444444" CornerRadius="5"
+                                    HorizontalAlignment="Left" Width="0" Height="8"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Name="ProgressText" Text="0%"
+                                   FontSize="11" Foreground="#444444" VerticalAlignment="Center"/>
                     </Grid>
-                </Grid>
-                </Grid>
-            </Border>
 
-            <!-- Bottom close -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Name="BtnClose" Content="Close" Style="{StaticResource BtnDark}" MinWidth="80"/>
-            </StackPanel>
-        </Grid>
+                    <!-- Buttons -->
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Name="BtnFindBest" Content="Find Best" Style="{StaticResource BtnPrimary}"
+                                Margin="0,0,8,0" MinWidth="110"/>
+                        <Button Name="BtnLaunch" Content="Launch Selected" Style="{StaticResource BtnAccent}"
+                                MinWidth="100" IsEnabled="False"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- TAB: Domains -->
+            <Grid Name="PanelDomains" Visibility="Hidden">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Domain:" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Name="DomainInput" Style="{StaticResource InputBox}"
+                                 Margin="0,0,8,0" VerticalContentAlignment="Center">
+                            <TextBox.ToolTip>Enter domain like: example.com</TextBox.ToolTip>
+                        </TextBox>
+                        <Button Grid.Column="1" Name="BtnAddBypass" Content="+ Bypass" Style="{StaticResource BtnAccent}"
+                                Margin="0,0,8,0"/>
+                        <Button Grid.Column="2" Name="BtnAddExclude" Content="+ Exclude" Style="{StaticResource BtnDanger}"/>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <DockPanel Grid.Column="0">
+                            <TextBlock DockPanel.Dock="Top" Text="Bypass (zapret ON for these)"
+                                       FontSize="11" Foreground="#4a7a5a" Margin="0,0,0,4"/>
+                            <ListBox Name="BypassList"
+                                     BorderThickness="0" Background="Transparent"
+                                     Foreground="#777777" FontSize="12"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                        </DockPanel>
+                        <Button Grid.Column="1" Name="BtnRemoveBypass" Content="x" Style="{StaticResource BtnDanger}"
+                                Margin="8,22,0,0" Width="30" Height="30" VerticalAlignment="Top"
+                                FontSize="14" Padding="0"/>
+                    </Grid>
+
+                    <GridSplitter Grid.Row="3" Height="10" HorizontalAlignment="Stretch"
+                                  Background="Transparent" Margin="0,4,0,4"/>
+
+                    <Grid Grid.Row="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <DockPanel Grid.Column="0">
+                            <TextBlock DockPanel.Dock="Top" Text="Exclude (zapret OFF for these)"
+                                       FontSize="11" Foreground="#7a4a4a" Margin="0,0,0,4"/>
+                            <ListBox Name="ExcludeList"
+                                     BorderThickness="0" Background="Transparent"
+                                     Foreground="#777777" FontSize="12"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                        </DockPanel>
+                        <Button Grid.Column="1" Name="BtnRemoveExclude" Content="x" Style="{StaticResource BtnDanger}"
+                                Margin="8,22,0,0" Width="30" Height="30" VerticalAlignment="Top"
+                                FontSize="14" Padding="0"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button Name="BtnRefreshDomains" Content="Refresh" Style="{StaticResource BtnMuted}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- TAB: Settings -->
+            <Grid Name="PanelSettings" Visibility="Hidden">
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                        <TextBlock Text="Settings" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="#777777" Margin="0,0,0,12"/>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Game Filter" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <TextBlock Name="GameFilterLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox Name="GameFilterCombo" Width="160" Style="{StaticResource DarkCombo}"
+                                              ItemContainerStyle="{StaticResource DarkComboItem}">
+                                        <ComboBoxItem Content="Disabled"/>
+                                        <ComboBoxItem Content="TCP + UDP"/>
+                                        <ComboBoxItem Content="TCP only"/>
+                                        <ComboBoxItem Content="UDP only"/>
+                                    </ComboBox>
+                                    <Button Name="BtnApplyGame" Content="Apply" Style="{StaticResource BtnPrimary}"
+                                            Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="IPSet Filter" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <TextBlock Name="IPSetLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox Name="IPSetCombo" Width="160" Style="{StaticResource DarkCombo}"
+                                              ItemContainerStyle="{StaticResource DarkComboItem}">
+                                        <ComboBoxItem Content="None"/>
+                                        <ComboBoxItem Content="Loaded"/>
+                                        <ComboBoxItem Content="Any"/>
+                                    </ComboBox>
+                                    <Button Name="BtnApplyIPSet" Content="Apply" Style="{StaticResource BtnPrimary}"
+                                            Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Auto Update Check" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <TextBlock Name="UpdateLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,6"/>
+                                <Button Name="BtnToggleUpdate" Style="{StaticResource BtnPrimary}" MinWidth="120"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Service" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="#777777" Margin="0,0,0,12"/>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="zapret Service" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <TextBlock Name="ServiceLabel" FontSize="11" Foreground="#555555" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="BtnInstallService" Content="Install" Style="{StaticResource BtnAccent}"
+                                            Margin="0,0,8,0" MinWidth="80"/>
+                                    <Button Name="BtnRemoveService" Content="Remove" Style="{StaticResource BtnDanger}"
+                                            Margin="0,0,8,0" MinWidth="80"/>
+                                    <Button Name="BtnCheckStatus" Content="Status" Style="{StaticResource BtnMuted}"
+                                            MinWidth="80"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Update Lists" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="BtnUpdateIPSet" Content="Update IPSet" Style="{StaticResource BtnPrimary}"
+                                            Margin="0,0,8,0"/>
+                                    <Button Name="BtnUpdateHosts" Content="Update Hosts" Style="{StaticResource BtnPrimary}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Installed Strategy" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#777777" Margin="0,0,0,6"/>
+                                <TextBlock Name="InstalledStrategyLabel" FontSize="11" Foreground="#555555"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Name="SettingsStatus" FontSize="11" Foreground="#555555"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Bottom close -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="BtnClose" Content="Close" Style="{StaticResource BtnMuted}" MinWidth="80"/>
+        </StackPanel>
     </Grid>
 </Window>
 '@
@@ -594,6 +602,8 @@ $ProgressText      = $window.FindName("ProgressText")
 $BtnFindBest       = $window.FindName("BtnFindBest")
 $BtnLaunch         = $window.FindName("BtnLaunch")
 $BtnClose          = $window.FindName("BtnClose")
+$StrategyCombo     = $window.FindName("StrategyCombo")
+$BtnRunStrategy    = $window.FindName("BtnRunStrategy")
 $TabScan           = $window.FindName("TabScan")
 $TabDomains        = $window.FindName("TabDomains")
 $TabSettings       = $window.FindName("TabSettings")
@@ -627,6 +637,16 @@ $SettingsStatus    = $window.FindName("SettingsStatus")
 
 $script:selectedBat = $null
 
+# --- Populate Strategy Combo ---
+$script:batFiles = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
+    Where-Object { $_.Name -notlike "service*" } |
+    Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) }
+
+foreach ($f in $script:batFiles) {
+    [void]$StrategyCombo.Items.Add($f.Name.Replace('.bat',''))
+}
+if ($StrategyCombo.Items.Count -gt 0) { $StrategyCombo.SelectedIndex = 0 }
+
 # --- Tab Switching ---
 $PanelElements = @($PanelScan, $PanelDomains, $PanelSettings)
 
@@ -647,6 +667,17 @@ $TabDomains.Add_Checked({ Switch-Tab "Domains" })
 $TabSettings.Add_Checked({
     Switch-Tab "Settings"
     Refresh-Settings
+})
+
+# --- Strategy Launch from Combo ---
+$BtnRunStrategy.Add_Click({
+    $idx = $StrategyCombo.SelectedIndex
+    if ($idx -ge 0 -and $idx -lt $script:batFiles.Count) {
+        $bat = $script:batFiles[$idx]
+        Stop-Winws
+        Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
+        $StatusText.Text = "Running: $($bat.Name.Replace('.bat',''))"
+    }
 })
 
 # --- Domain Management ---
@@ -733,7 +764,6 @@ function Refresh-Settings {
     $BtnToggleUpdate.Content = $(if ($updStatus -eq "Enabled") { "Disable" } else { "Enable" })
 
     $svcInstalled = $false
-    $svcRunning = $false
     try {
         sc query "zapret" 2>&1 | Out-Null
         if ($LASTEXITCODE -eq 0) { $svcInstalled = $true }
@@ -765,7 +795,7 @@ $BtnApplyGame.Add_Click({
         Set-GameFilterMode -Mode $selected.Content
         Refresh-Settings
         $SettingsStatus.Text = "Game Filter set to: $($selected.Content)"
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#00b894")
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
     }
 })
 
@@ -796,7 +826,7 @@ $BtnApplyIPSet.Add_Click({
         }
         Refresh-Settings
         $SettingsStatus.Text = "IPSet set to: $($selected.Content)"
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#00b894")
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
     }
 })
 
@@ -813,7 +843,7 @@ $BtnToggleUpdate.Add_Click({
 $BtnCheckStatus.Add_Click({
     Refresh-Settings
     $SettingsStatus.Text = "Status refreshed"
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8888aa")
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666666")
 })
 
 $BtnInstallService.Add_Click({
@@ -822,15 +852,8 @@ $BtnInstallService.Add_Click({
         Where-Object { $_.Name -notlike "service*" } |
         Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) }
 
-    $items = @()
-    $idx = 0
-    foreach ($f in $batFiles) {
-        $idx++
-        $items += "$idx. $($f.Name)"
-    }
-
     $SettingsStatus.Text = "Use 'service.bat > Install Service' to pick a strategy. Available: $($batFiles.Count) configs."
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8888aa")
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666666")
 })
 
 $BtnRemoveService.Add_Click({
@@ -841,7 +864,7 @@ $BtnRemoveService.Add_Click({
     $r4 = & sc delete WinDivert 2>&1
     Refresh-Settings
     $SettingsStatus.Text = "Service removed."
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#00b894")
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
 })
 
 $BtnUpdateIPSet.Add_Click({
@@ -859,10 +882,10 @@ $BtnUpdateIPSet.Add_Click({
         $proc.WaitForExit(15000)
         Refresh-Settings
         $SettingsStatus.Text = "IPSet updated."
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#00b894")
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
     } catch {
         $SettingsStatus.Text = "Failed to update IPSet: $_"
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#d63031")
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
     }
 })
 
@@ -880,11 +903,11 @@ $BtnUpdateHosts.Add_Click({
         if (Test-Path $tempFile) {
             & notepad $tempFile
             $SettingsStatus.Text = "Hosts file downloaded. Copy content to $env:SystemRoot\System32\drivers\etc\hosts"
-            $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#74b9ff")
+            $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666666")
         }
     } catch {
         $SettingsStatus.Text = "Failed to download hosts: $_"
-        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#d63031")
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
     }
 })
 
@@ -896,7 +919,7 @@ function Start-Scan {
     $ProgressFill.Width = 0
     $ProgressText.Text = "0%"
     $StatusText.Text = "Scanning..."
-    $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8888aa")
+    $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
 
     $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
     $runspace.ThreadOptions = "ReuseThread"
@@ -1029,7 +1052,7 @@ function Start-Scan {
                 $best = $sorted[0]
                 $st = $window.FindName("StatusText")
                 $st.Text = "Best: $($best.Name)   |   Discord $($best.DiscordScore)%   |   YouTube $($best.YouTubeScore)%   |   Score $($best.TotalScore)%"
-                $st.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#a29bfe")
+                $st.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
                 $script:selectedBat = $best.Path
                 $window.FindName("BtnLaunch").IsEnabled = $true
             } else {
@@ -1048,8 +1071,8 @@ $BtnClose.Add_Click({ $window.Close() })
 $BtnLaunch.Add_Click({
     if ($script:selectedBat) {
         Stop-Winws
-        Start-BatHidden -BatPath $script:selectedBat -WorkDir $rootDir
-        $StatusText.Text = "Launched: $([System.IO.Path]::GetFileName($script:selectedBat))"
+        Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
     }
 })
 
