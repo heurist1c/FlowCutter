@@ -1535,6 +1535,12 @@ $ResultsGrid.Add_SelectionChanged({
     if ($sel) {
         $script:selectedBat = $sel.Path
         $BtnLaunch.IsEnabled = $true
+        for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
+            if ($StrategyCombo.Items[$i] -eq $sel.StratName) {
+                $StrategyCombo.SelectedIndex = $i
+                break
+            }
+        }
     }
 })
 
