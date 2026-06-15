@@ -65,13 +65,7 @@ function Start-WinwsHidden {
     $fullCmd = $fullCmd -replace '%GameFilterUDP%', $gf.UDP
 
     $prepBat = "$env:TEMP\flowcutter_prep.bat"
-    $prepContent = @"
-@echo off
-cd /d "$WorkDir"
-call "service.bat" status_zapret >nul 2>&1
-call "service.bat" load_game_filter >nul 2>&1
-call "service.bat" load_user_lists >nul 2>&1
-"@
+    $prepContent = "@echo off`r`ncd /d `"$WorkDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
     [System.IO.File]::WriteAllText($prepBat, $prepContent, [System.Text.Encoding]::Default)
 
     try {
@@ -1269,7 +1263,8 @@ $BtnCheckStatus.Add_Click({
 
     $lines = @()
     if ($svcInstalled) {
-        $lines += "Service: installed ($($svcRunning ? 'running' : 'stopped'))"
+        $svcState = if ($svcRunning) { "running" } else { "stopped" }
+        $lines += "Service: installed ($svcState)"
     } else {
         $lines += "Service: not installed"
     }
@@ -1426,13 +1421,7 @@ function Start-Scan {
         $listsPath = Join-Path $rootDir "lists"
 
         $prepBat = "$env:TEMP\flowcutter_scan_prep.bat"
-        $prepContent = @"
-@echo off
-cd /d "$rootDir"
-call "service.bat" status_zapret >nul 2>&1
-call "service.bat" load_game_filter >nul 2>&1
-call "service.bat" load_user_lists >nul 2>&1
-"@
+        $prepContent = "@echo off`r`ncd /d `"$rootDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
         [System.IO.File]::WriteAllText($prepBat, $prepContent, [System.Text.Encoding]::Default)
         try {
             $prep = Start-Process cmd.exe "/c `"$prepBat`"" -WindowStyle Hidden -WorkingDirectory $rootDir -Wait -PassThru
