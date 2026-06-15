@@ -1248,29 +1248,87 @@ $BtnDownloadUpdate.Add_Click({
 })
 
 $BtnCheckStatus.Add_Click({
+    $SettingsStatus.Text = "Checking status..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+
+    $svcInstalled = $false
+    $svcRunning = $false
+    try {
+        $svcQuery = & sc query "zapret" 2>&1 | Out-String
+        if ($svcQuery -match "RUNNING") { $svcInstalled = $true; $svcRunning = $true }
+        elseif ($svcQuery -match "STOPPED") { $svcInstalled = $true; $svcRunning = $false }
+    } catch {}
+
+    $winwsRunning = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+
+    $strategy = ""
+    try {
+        $reg = & reg query "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube 2>&1 | Out-String
+        if ($reg -match "REG_SZ\s+(.+)") { $strategy = $Matches[1].Trim() }
+    } catch {}
+
+    $lines = @()
+    if ($svcInstalled) {
+        $lines += "Service: installed ($($svcRunning ? 'running' : 'stopped'))"
+    } else {
+        $lines += "Service: not installed"
+    }
+    if ($winwsRunning) { $lines += "winws: running" } else { $lines += "winws: not running" }
+    if ($strategy -ne "") { $lines += "Strategy: $strategy" }
+
     Refresh-Settings
-    $SettingsStatus.Text = "Status refreshed"
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666666")
+    $SettingsStatus.Text = $lines -join " | "
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
 })
 
 $BtnInstallService.Add_Click({
-    Stop-Winws
-    $batFiles = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
-        Where-Object { $_.Name -notlike "service*" } |
-        Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) }
+    $SettingsStatus.Text = "Opening service installer..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
 
-    $SettingsStatus.Text = "Use 'service.bat > Install Service' to pick a strategy. Available: $($batFiles.Count) configs."
-    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666666")
+    $batPath = Join-Path $rootDir "service.bat"
+    if (-not (Test-Path $batPath)) {
+        $SettingsStatus.Text = "service.bat not found"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+        return
+    }
+
+    Stop-Winws
+
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "cmd.exe"
+        $psi.Arguments = "/c `"$batPath`""
+        $psi.WorkingDirectory = $rootDir
+        $psi.UseShellExecute = $true
+        $psi.Verb = "runas"
+        [void][System.Diagnostics.Process]::Start($psi)
+        $SettingsStatus.Text = "service.bat opened. Select 'Install Service' from its menu."
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+    } catch {
+        $SettingsStatus.Text = "Failed to open service.bat: $($_.Exception.Message)"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+    }
 })
 
 $BtnRemoveService.Add_Click({
-    $r1 = & net stop zapret 2>&1
-    $r2 = & sc delete zapret 2>&1
+    $SettingsStatus.Text = "Removing service..."
+    $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
+
     Stop-Winws
-    $r3 = & net stop WinDivert 2>&1
-    $r4 = & sc delete WinDivert 2>&1
+
+    $output = @()
+    $r1 = & net stop zapret 2>&1 | Out-String; if ($r1.Trim()) { $output += $r1.Trim() }
+    $r2 = & sc delete zapret 2>&1 | Out-String; if ($r2.Trim()) { $output += $r2.Trim() }
+    $r3 = & net stop WinDivert 2>&1 | Out-String; if ($r3.Trim()) { $output += $r3.Trim() }
+    $r4 = & sc delete WinDivert 2>&1 | Out-String; if ($r4.Trim()) { $output += $r4.Trim() }
+
     Refresh-Settings
-    $SettingsStatus.Text = "Service removed."
+
+    if ($output.Count -gt 0) {
+        $SettingsStatus.Text = ($output | Select-Object -Last 2) -join " | "
+    } else {
+        $SettingsStatus.Text = "No service found to remove"
+    }
     $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
 })
 
