@@ -1520,9 +1520,9 @@ function Start-Scan {
                     $proc = $null
                     $scanPid = 0
                     try {
-                        $scanSync.Remove('Pid') -EA SilentlyContinue
-                        $scanSync.Remove('ExitCode') -EA SilentlyContinue
-                        $scanSync.Remove('Stderr') -EA SilentlyContinue
+                        $scanSync.Remove('Pid') | Out-Null
+                        $scanSync.Remove('ExitCode') | Out-Null
+                        $scanSync.Remove('Stderr') | Out-Null
                         $stderrLog = Join-Path $env:TEMP "flowcutter_winws_stderr.log"
                         if (Test-Path $stderrLog) { Remove-Item $stderrLog -Force -EA SilentlyContinue }
                         $stderrLogPath = $stderrLog
