@@ -99,6 +99,8 @@ function Start-WinwsHidden {
         $psi.RedirectStandardError = $true
         $psi.RedirectStandardOutput = $true
         $proc = [System.Diagnostics.Process]::Start($psi)
+        $proc.BeginOutputReadLine()
+        $proc.BeginErrorReadLine()
         return $proc
     } catch {
         Write-Host "Error launching winws.exe: $_"
@@ -1438,6 +1440,7 @@ function Start-Scan {
 
     [void]$ps.AddScript({
         $disp = $window.Dispatcher
+        $scanSync = @{}
 
         function Push-UI([int]$Pct, [string]$Text) {
             $disp.Invoke([Action]{
@@ -1513,19 +1516,51 @@ function Start-Scan {
                     "CMD: $cmd" | Out-File $debugLog -Append -Encoding UTF8
                     $exe = Join-Path $binPath "winws.exe"
                     "EXE exists: $(Test-Path $exe)" | Out-File $debugLog -Append -Encoding UTF8
-                    $psi = New-Object System.Diagnostics.ProcessStartInfo
-                    $psi.FileName = $exe
-                    $psi.Arguments = $cmd
-                    $psi.WorkingDirectory = $binPath
-                    $psi.CreateNoWindow = $true
-                    $psi.UseShellExecute = $false
-                    $psi.RedirectStandardOutput = $true
-                    $psi.RedirectStandardError = $true
+
+                    $proc = $null
+                    $scanPid = 0
                     try {
-                        $proc = [System.Diagnostics.Process]::Start($psi)
-                        "winws PID: $($proc.Id), HasExited: $($proc.HasExited)" | Out-File $debugLog -Append -Encoding UTF8
-                        $proc.BeginOutputReadLine()
-                        $proc.BeginErrorReadLine()
+                        $scanSync.Remove('Pid') -EA SilentlyContinue
+                        $scanSync.Remove('ExitCode') -EA SilentlyContinue
+                        $scanSync.Remove('Stderr') -EA SilentlyContinue
+                        $stderrLog = Join-Path $env:TEMP "flowcutter_winws_stderr.log"
+                        if (Test-Path $stderrLog) { Remove-Item $stderrLog -Force -EA SilentlyContinue }
+                        $stderrLogPath = $stderrLog
+                        $disp.Invoke([Action]{
+                            $exe2 = Join-Path $binPath "winws.exe"
+                            $psi2 = New-Object System.Diagnostics.ProcessStartInfo
+                            $psi2.FileName = $exe2
+                            $psi2.Arguments = $cmd
+                            $psi2.WorkingDirectory = $binPath
+                            $psi2.CreateNoWindow = $true
+                            $psi2.UseShellExecute = $false
+                            $psi2.RedirectStandardOutput = $false
+                            $psi2.RedirectStandardError = $true
+                            $p2 = [System.Diagnostics.Process]::Start($psi2)
+                            if ($p2) {
+                                $scanSync['Pid'] = $p2.Id
+                                $slp = $stderrLogPath
+                                $p2.add_ErrorDataReceived({
+                                    param($sender, $e)
+                                    if ($e.Data) {
+                                        try { [System.IO.File]::AppendAllText($slp, $e.Data + "`n", [System.Text.Encoding]::UTF8) } catch {}
+                                    }
+                                })
+                                $p2.BeginErrorReadLine()
+                                $p2.WaitForExit(8000)
+                                $scanSync['ExitCode'] = $p2.ExitCode
+                            }
+                        })
+                        $scanPid = 0
+                        if ($scanSync.ContainsKey('Pid')) { $scanPid = [int]$scanSync['Pid'] }
+                        if ($scanSync.ContainsKey('ExitCode')) {
+                            "winws EXIT CODE: $($scanSync['ExitCode'])" | Out-File $debugLog -Append -Encoding UTF8
+                        }
+                        if (Test-Path $stderrLog) {
+                            $err = [System.IO.File]::ReadAllText($stderrLog)
+                            if ($err) { "winws STDERR: $err" | Out-File $debugLog -Append -Encoding UTF8 }
+                        }
+                        "winws PID: $scanPid" | Out-File $debugLog -Append -Encoding UTF8
                     } catch {
                         "FAILED TO START: $_" | Out-File $debugLog -Append -Encoding UTF8
                     }
@@ -1533,14 +1568,11 @@ function Start-Scan {
             }
 
             $waited = 0
-            while ($waited -lt 5000) {
-                Start-Sleep -Milliseconds 200
-                $waited += 200
-                if (Get-Process -Name "winws" -EA SilentlyContinue) { break }
+            $winwsRunning = $false
+            if ($scanPid -gt 0) {
+                $found = Get-Process -Id $scanPid -EA SilentlyContinue
+                $winwsRunning = $found -ne $null
             }
-            Start-Sleep -Milliseconds 1000
-
-            $winwsRunning = (Get-Process -Name "winws" -EA SilentlyContinue) -ne $null
             "winws running after wait: $winwsRunning" | Out-File $debugLog -Append -Encoding UTF8
 
             $dOk = 0; $yOk = 0
@@ -1569,9 +1601,6 @@ function Start-Scan {
                 }
             }
             "Result: dOk=$dOk yOk=$yOk" | Out-File $debugLog -Append -Encoding UTF8
-
-            Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
-            Start-Sleep -Milliseconds 200
 
             $dScore = [math]::Round(($dOk / 2) * 100)
             $yScore = [math]::Round(($yOk / 2) * 100)
