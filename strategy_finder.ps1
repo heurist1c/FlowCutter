@@ -1788,10 +1788,17 @@ $BtnStop.Add_Click({
 
 $BtnRestart.Add_Click({
     if (-not $script:selectedBat) { return }
+    $BtnRestart.IsEnabled = $false
+    $BtnStop.IsEnabled = $false
+    $BtnLaunch.IsEnabled = $false
+    $StatusText.Text = "Restarting..."
+    $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
+
     Stop-Winws
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
     if (-not $proc) {
         $StatusText.Text = "Failed to restart"
+        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
         return
     }
     $script:winwsProcess = $proc
@@ -1800,11 +1807,13 @@ $BtnRestart.Add_Click({
     if ($running) {
         Set-RunningStrategy -BatPath $script:selectedBat
         $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
         $BtnStop.IsEnabled = $true
         $BtnRestart.IsEnabled = $true
         $BtnLaunch.IsEnabled = $false
     } else {
         $StatusText.Text = "Restart failed"
+        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
     }
 })
 
