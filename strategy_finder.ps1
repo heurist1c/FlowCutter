@@ -1316,7 +1316,7 @@ $BtnInstallService.Add_Click({
     }
 
     $gf = Get-GameFilterValues
-    $cmd = ($parts -join ' ') -replace '%BIN%', $binPath -replace '%LISTS%', $listsPath -replace '%GameFilterTCP%', $gf.TCP -replace '%GameFilterUDP%', $gf.UDP
+    $cmd = (($parts -join ' ') -replace '%BIN%', $binPath -replace '%LISTS%', $listsPath -replace '%GameFilterTCP%', $gf.TCP -replace '%GameFilterUDP%', $gf.UDP) -replace ', ', ' '
 
     $prepBat = "$env:TEMP\flowcutter_install_prep.bat"
     $prepContent = "@echo off`r`ncd /d `"$rootDir`"`r`ncall `"service.bat`" status_zapret >nul 2>&1`r`ncall `"service.bat`" load_game_filter >nul 2>&1`r`ncall `"service.bat`" load_user_lists >nul 2>&1"
@@ -1512,7 +1512,7 @@ function Start-Scan {
                 }
                 if ($parts.Count -gt 0) {
                     $gf = Get-GameFilterValues
-                    $cmd = ($parts -join ' ') -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%',$gf.TCP -replace '%GameFilterUDP%',$gf.UDP
+                    $cmd = (($parts -join ' ') -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%',$gf.TCP -replace '%GameFilterUDP%',$gf.UDP) -replace ', ', ' '
                     "--- [$idx/$total] $($bat.Name) ---" | Out-File $debugLog -Append -Encoding UTF8
                     "CMD: $cmd" | Out-File $debugLog -Append -Encoding UTF8
                     $exe = Join-Path $binPath "winws.exe"
