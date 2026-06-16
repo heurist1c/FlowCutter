@@ -1793,29 +1793,91 @@ $BtnRestart.Add_Click({
     $BtnLaunch.IsEnabled = $false
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
-    $window.UpdateLayout()
 
-    Stop-Winws
-    $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if (-not $proc) {
-        $StatusText.Text = "Failed to restart"
-        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-        return
-    }
-    $script:winwsProcess = $proc
-    Start-Sleep -Seconds 3
-    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
-    if ($running) {
-        Set-RunningStrategy -BatPath $script:selectedBat
-        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
-        $BtnStop.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
-        $BtnLaunch.IsEnabled = $false
-    } else {
-        $StatusText.Text = "Restart failed"
-        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-    }
+    $batPath = $script:selectedBat
+    $disp = $window.Dispatcher
+
+    $job = [System.Threading.Thread]::new([System.Threading.ThreadStart]{
+        Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
+        Start-Sleep -Milliseconds 500
+
+        $rawLines = Get-Content $batPath -EA SilentlyContinue
+        if (-not $rawLines) {
+            $disp.Invoke([Action]{
+                $StatusText.Text = "Failed to restart"
+                $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+                $BtnRestart.IsEnabled = $false
+            }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            return
+        }
+
+        $binPath = (Join-Path $rootDir "bin") + "\"
+        $listsPath = (Join-Path $rootDir "lists") + "\"
+        $inCommand = $false; $cmdParts = @()
+        foreach ($line in $rawLines) {
+            $t = $line.Trim()
+            if ($t -match 'winws\.exe') {
+                $afterExe = ($t -replace '.*winws\.exe["\s]*', '').TrimEnd('^').TrimEnd(',').Trim()
+                $cmdParts += $afterExe
+                $inCommand = $true; continue
+            }
+            if ($inCommand -and $t) {
+                if ($t.EndsWith('^')) { $cmdParts += $t.TrimEnd('^').Trim() }
+                else { $cmdParts += $t; $inCommand = $false }
+            }
+        }
+        if ($cmdParts.Count -eq 0) {
+            $disp.Invoke([Action]{
+                $StatusText.Text = "Failed to restart"
+                $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+                $BtnRestart.IsEnabled = $false
+            }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            return
+        }
+
+        $fullCmd = ($cmdParts -join ' ') -replace ', ', ' '
+        $gf = Get-GameFilterValues
+        $fullCmd = $fullCmd -replace '%BIN%', $binPath -replace '%LISTS%', $listsPath -replace '%GameFilterTCP%', $gf.TCP -replace '%GameFilterUDP%', $gf.UDP
+
+        $exe = Join-Path $binPath "winws.exe"
+        $proc = $null
+        try {
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $exe
+            $psi.Arguments = $fullCmd
+            $psi.WorkingDirectory = $binPath
+            $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+            $psi.CreateNoWindow = $true
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardError = $true
+            $psi.RedirectStandardOutput = $true
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            $proc.BeginOutputReadLine()
+            $proc.BeginErrorReadLine()
+        } catch {}
+
+        Start-Sleep -Seconds 3
+        $running = (Get-Process -Name "winws" -EA SilentlyContinue) -ne $null
+        $batName = [System.IO.Path]::GetFileNameWithoutExtension($batPath)
+
+        $disp.Invoke([Action]{
+            if ($running) {
+                Set-RunningStrategy -BatPath $batPath
+                $script:winwsProcess = $proc
+                $StatusText.Text = "Running: $batName"
+                $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
+                $BtnStop.IsEnabled = $true
+                $BtnRestart.IsEnabled = $true
+                $BtnLaunch.IsEnabled = $false
+            } else {
+                $StatusText.Text = "Restart failed"
+                $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+                $BtnRestart.IsEnabled = $false
+            }
+        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+    })
+    $job.IsBackground = $true
+    $job.Start()
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
