@@ -413,6 +413,10 @@ $xamlStr = @'
             <Setter Property="Background" Value="#1a1a1a"/>
             <Setter Property="Foreground" Value="#888888"/>
         </Style>
+        <Style x:Key="BtnWarning" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Background" Value="#3a3a1e"/>
+            <Setter Property="Foreground" Value="#9a9a6a"/>
+        </Style>
         <Style x:Key="TabBtn" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#444444"/>
@@ -648,6 +652,8 @@ $xamlStr = @'
                         <Button Name="BtnFindBest" Content="Find Best" Style="{StaticResource BtnPrimary}"
                                 Margin="0,0,8,0" MinWidth="110"/>
                         <Button Name="BtnStop" Content="Stop" Style="{StaticResource BtnDanger}"
+                                Margin="0,0,8,0" MinWidth="80" IsEnabled="False"/>
+                        <Button Name="BtnRestart" Content="Restart" Style="{StaticResource BtnWarning}"
                                 Margin="0,0,8,0" MinWidth="80" IsEnabled="False"/>
                         <Button Name="BtnLaunch" Content="Launch Selected" Style="{StaticResource BtnAccent}"
                                 MinWidth="100" IsEnabled="False"/>
@@ -931,6 +937,7 @@ $SettingsStatus    = $window.FindName("SettingsStatus")
 $AutostartLabel    = $window.FindName("AutostartLabel")
 $BtnAutostartOn    = $window.FindName("BtnAutostartOn")
 $BtnAutostartOff   = $window.FindName("BtnAutostartOff")
+$BtnRestart        = $window.FindName("BtnRestart")
 
 $script:selectedBat = $null
 $script:winwsProcess = $null
@@ -977,6 +984,7 @@ $BtnRunStrategy.Add_Click({
         if (-not $proc) {
             $StatusText.Text = "Failed to start: $($bat.Name.Replace('.bat','')) (could not launch process)"
             $BtnStop.IsEnabled = $false
+            $BtnRestart.IsEnabled = $false
             return
         }
         $script:winwsProcess = $proc
@@ -985,6 +993,7 @@ $BtnRunStrategy.Add_Click({
         if ($running) {
             $StatusText.Text = "Running: $($bat.Name.Replace('.bat',''))"
             $BtnStop.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
             $BtnLaunch.IsEnabled = $false
         } else {
             $stderr = ""
@@ -1510,6 +1519,7 @@ function Start-Scan {
     $BtnFindBest.IsEnabled = $false
     $BtnLaunch.IsEnabled = $false
     $BtnStop.IsEnabled = $false
+    $BtnRestart.IsEnabled = $false
     $ResultsGrid.ItemsSource = $null
     $ProgressFill.Width = 0
     $ProgressText.Text = "0%"
@@ -1734,6 +1744,7 @@ $BtnLaunch.Add_Click({
         if (-not $proc) {
             $StatusText.Text = "Failed to start: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)) (could not launch process)"
             $BtnStop.IsEnabled = $false
+            $BtnRestart.IsEnabled = $false
             return
         }
         $script:winwsProcess = $proc
@@ -1743,6 +1754,7 @@ $BtnLaunch.Add_Click({
             Set-RunningStrategy -BatPath $script:selectedBat
             $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
             $BtnStop.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
             $BtnLaunch.IsEnabled = $false
         } else {
             $stderr = ""
@@ -1760,6 +1772,7 @@ $BtnLaunch.Add_Click({
             $StatusText.Text = "Failed: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)) ($detail)"
             Write-Host "winws stderr: $stderr"
             $BtnStop.IsEnabled = $false
+            $BtnRestart.IsEnabled = $false
         }
     }
 })
@@ -1770,6 +1783,29 @@ $BtnStop.Add_Click({
     $script:winwsProcess = $null
     $StatusText.Text = "Stopped"
     $BtnStop.IsEnabled = $false
+    $BtnRestart.IsEnabled = $false
+})
+
+$BtnRestart.Add_Click({
+    if (-not $script:selectedBat) { return }
+    Stop-Winws
+    $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+    if (-not $proc) {
+        $StatusText.Text = "Failed to restart"
+        return
+    }
+    $script:winwsProcess = $proc
+    Start-Sleep -Seconds 3
+    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+    if ($running) {
+        Set-RunningStrategy -BatPath $script:selectedBat
+        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+        $BtnStop.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
+        $BtnLaunch.IsEnabled = $false
+    } else {
+        $StatusText.Text = "Restart failed"
+    }
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
@@ -1796,10 +1832,12 @@ $timer.Add_Tick({
     if (-not $running -and $BtnStop.IsEnabled) {
         Clear-RunningStrategy
         $BtnStop.IsEnabled = $false
+        $BtnRestart.IsEnabled = $false
         $BtnLaunch.IsEnabled = $true
         $StatusText.Text = "winws stopped"
     } elseif ($running -and -not $BtnStop.IsEnabled) {
         $BtnStop.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
         $BtnLaunch.IsEnabled = $false
         if (-not $StatusText.Text -or $StatusText.Text -notmatch '^Running:') {
             $runningBat = Get-RunningStrategy
@@ -1823,6 +1861,7 @@ if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
     $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
     $BtnStop.IsEnabled = $true
+    $BtnRestart.IsEnabled = $true
     $BtnLaunch.IsEnabled = $false
 }
 
