@@ -1598,6 +1598,7 @@ function Start-Scan {
             }
         }
 
+        Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
         $sorted = $results | Sort-Object -Property TotalScore -Descending
         Push-UI -Pct 100 -Text ""
 
