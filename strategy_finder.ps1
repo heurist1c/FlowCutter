@@ -16,7 +16,7 @@ function Set-RunningStrategy {
     $dir = Split-Path $runningFile
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $batName = [System.IO.Path]::GetFileNameWithoutExtension($BatPath)
-    $batName | Out-File $runningFile -Encoding UTF8 -Force
+    [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
 }
 
 function Clear-RunningStrategy {
@@ -25,7 +25,7 @@ function Clear-RunningStrategy {
 
 function Get-RunningStrategy {
     if (-not (Test-Path $runningFile)) { return $null }
-    $name = (Get-Content $runningFile -First 1 -ErrorAction SilentlyContinue).Trim()
+    $name = [System.IO.File]::ReadAllText($runningFile).Trim()
     if (-not $name) { return $null }
     $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
         Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -eq $name } |
