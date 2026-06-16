@@ -1434,6 +1434,8 @@ function Start-Scan {
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable("rootDir", $rootDir)
     $runspace.SessionStateProxy.SetVariable("window", $window)
+    $runspace.SessionStateProxy.SetVariable("gfTCP", (Get-GameFilterValues).TCP)
+    $runspace.SessionStateProxy.SetVariable("gfUDP", (Get-GameFilterValues).UDP)
 
     $ps = [System.Management.Automation.PowerShell]::Create()
     $ps.Runspace = $runspace
@@ -1511,7 +1513,7 @@ function Start-Scan {
                     }
                 }
                 if ($parts.Count -gt 0) {
-                    $gf = Get-GameFilterValues
+                    $gf = @{ TCP = $gfTCP; UDP = $gfUDP }
                     $cmd = (($parts -join ' ') -replace '%BIN%',$binPath -replace '%LISTS%',$listsPath -replace '%GameFilterTCP%',$gf.TCP -replace '%GameFilterUDP%',$gf.UDP) -replace ', ', ' '
                     "--- [$idx/$total] $($bat.Name) ---" | Out-File $debugLog -Append -Encoding UTF8
                     "CMD: $cmd" | Out-File $debugLog -Append -Encoding UTF8
