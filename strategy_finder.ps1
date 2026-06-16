@@ -1797,7 +1797,19 @@ $BtnRestart.Add_Click({
     $batPath = $script:selectedBat
     $disp = $window.Dispatcher
 
-    $job = [System.Threading.Thread]::new([System.Threading.ThreadStart]{
+    $ps = [System.Management.Automation.PowerShell]::Create()
+    $ps.Runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $ps.Runspace.Open()
+    $ps.Runspace.SessionStateProxy.SetVariable("batPath", $batPath)
+    $ps.Runspace.SessionStateProxy.SetVariable("rootDir", $rootDir)
+    $ps.Runspace.SessionStateProxy.SetVariable("runningFile", $runningFile)
+    $ps.Runspace.SessionStateProxy.SetVariable("disp", $disp)
+    $ps.Runspace.SessionStateProxy.SetVariable("StatusText", $StatusText)
+    $ps.Runspace.SessionStateProxy.SetVariable("BtnStop", $BtnStop)
+    $ps.Runspace.SessionStateProxy.SetVariable("BtnRestart", $BtnRestart)
+    $ps.Runspace.SessionStateProxy.SetVariable("BtnLaunch", $BtnLaunch)
+
+    [void]$ps.AddScript({
         Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
         Start-Sleep -Milliseconds 500
 
@@ -1806,7 +1818,6 @@ $BtnRestart.Add_Click({
             $disp.Invoke([Action]{
                 $StatusText.Text = "Failed to restart"
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-                $BtnRestart.IsEnabled = $false
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
             return
         }
@@ -1830,7 +1841,6 @@ $BtnRestart.Add_Click({
             $disp.Invoke([Action]{
                 $StatusText.Text = "Failed to restart"
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-                $BtnRestart.IsEnabled = $false
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
             return
         }
@@ -1840,7 +1850,6 @@ $BtnRestart.Add_Click({
         $fullCmd = $fullCmd -replace '%BIN%', $binPath -replace '%LISTS%', $listsPath -replace '%GameFilterTCP%', $gf.TCP -replace '%GameFilterUDP%', $gf.UDP
 
         $exe = Join-Path $binPath "winws.exe"
-        $proc = $null
         try {
             $psi = New-Object System.Diagnostics.ProcessStartInfo
             $psi.FileName = $exe
@@ -1860,10 +1869,14 @@ $BtnRestart.Add_Click({
         $running = (Get-Process -Name "winws" -EA SilentlyContinue) -ne $null
         $batName = [System.IO.Path]::GetFileNameWithoutExtension($batPath)
 
+        if ($running) {
+            $dir = Split-Path $runningFile
+            if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+            [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
+        }
+
         $disp.Invoke([Action]{
             if ($running) {
-                Set-RunningStrategy -BatPath $batPath
-                $script:winwsProcess = $proc
                 $StatusText.Text = "Running: $batName"
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
                 $BtnStop.IsEnabled = $true
@@ -1872,12 +1885,11 @@ $BtnRestart.Add_Click({
             } else {
                 $StatusText.Text = "Restart failed"
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-                $BtnRestart.IsEnabled = $false
             }
         }, [System.Windows.Threading.DispatcherPriority]::Normal)
     })
-    $job.IsBackground = $true
-    $job.Start()
+
+    $ps.BeginInvoke() | Out-Null
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
