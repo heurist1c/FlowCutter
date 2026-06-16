@@ -1793,6 +1793,7 @@ $BtnRestart.Add_Click({
     $BtnLaunch.IsEnabled = $false
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
+    $window.UpdateLayout()
 
     Stop-Winws
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
