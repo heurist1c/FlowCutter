@@ -5,10 +5,33 @@ $rootDir = Split-Path $MyInvocation.MyCommand.Path
 $binDir = Join-Path $rootDir "bin"
 $listsDir = Join-Path $rootDir "lists"
 $utilsDir = Join-Path $rootDir "utils"
+$runningFile = Join-Path $rootDir ".service\flowcutter.running"
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
+
+function Set-RunningStrategy {
+    param([string]$BatPath)
+    $dir = Split-Path $runningFile
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $batName = [System.IO.Path]::GetFileNameWithoutExtension($BatPath)
+    $batName | Out-File $runningFile -Encoding UTF8 -Force
+}
+
+function Clear-RunningStrategy {
+    if (Test-Path $runningFile) { Remove-Item $runningFile -Force -ErrorAction SilentlyContinue }
+}
+
+function Get-RunningStrategy {
+    if (-not (Test-Path $runningFile)) { return $null }
+    $name = (Get-Content $runningFile -First 1 -ErrorAction SilentlyContinue).Trim()
+    if (-not $name) { return $null }
+    $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
+        Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -eq $name } |
+        Select-Object -First 1
+    return $match
+}
 
 # --- Utility Functions ---
 function Stop-Winws {
@@ -57,7 +80,7 @@ function Start-WinwsHidden {
 
     if ($cmdParts.Count -eq 0) { return $null }
 
-    $fullCmd = $cmdParts -join ' '
+    $fullCmd = ($cmdParts -join ' ') -replace ', ', ' '
     $gf = Get-GameFilterValues
     $fullCmd = $fullCmd -replace '%BIN%', $binPath
     $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
@@ -822,6 +845,20 @@ $xamlStr = @'
 
                         <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
                             <StackPanel>
+                                <TextBlock Text="Autostart" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#cccccc" Margin="0,0,0,6"/>
+                                <TextBlock Name="AutostartLabel" FontSize="11" Foreground="#dddddd" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="BtnAutostartOn" Content="Enable" Style="{StaticResource BtnAccent}"
+                                            Margin="0,0,8,0" MinWidth="80"/>
+                                    <Button Name="BtnAutostartOff" Content="Disable" Style="{StaticResource BtnDanger}"
+                                            MinWidth="80"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#141414" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                            <StackPanel>
                                 <TextBlock Name="SettingsStatus" FontSize="11" Foreground="#dddddd"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
@@ -891,6 +928,9 @@ $BtnUpdateIPSet    = $window.FindName("BtnUpdateIPSet")
 $BtnUpdateHosts    = $window.FindName("BtnUpdateHosts")
 $InstalledStrategyLabel = $window.FindName("InstalledStrategyLabel")
 $SettingsStatus    = $window.FindName("SettingsStatus")
+$AutostartLabel    = $window.FindName("AutostartLabel")
+$BtnAutostartOn    = $window.FindName("BtnAutostartOn")
+$BtnAutostartOff   = $window.FindName("BtnAutostartOff")
 
 $script:selectedBat = $null
 $script:winwsProcess = $null
@@ -1079,6 +1119,7 @@ function Refresh-Settings {
     }
 
     $SettingsStatus.Text = ""
+    Update-AutostartLabel
 }
 
 $BtnApplyGame.Add_Click({
@@ -1241,6 +1282,53 @@ $BtnDownloadUpdate.Add_Click({
     }
     $BtnDownloadUpdate.IsEnabled = $true
     $BtnCheckUpdate.IsEnabled = $true
+})
+
+# --- Autostart ---
+function Get-AutostartTask {
+    try {
+        $out = & schtasks.exe /Query /TN "FlowCutter" 2>&1 | Out-String
+        return $out -match "FlowCutter"
+    } catch { return $false }
+}
+
+function Update-AutostartLabel {
+    if (Get-AutostartTask) {
+        $AutostartLabel.Text = "Status: enabled (starts with Windows)"
+        $BtnAutostartOn.IsEnabled = $false
+        $BtnAutostartOff.IsEnabled = $true
+    } else {
+        $AutostartLabel.Text = "Status: disabled"
+        $BtnAutostartOn.IsEnabled = $true
+        $BtnAutostartOff.IsEnabled = $false
+    }
+}
+
+$BtnAutostartOn.Add_Click({
+    $psPath = Join-Path $rootDir "strategy_finder.ps1"
+    $pwsh = "powershell.exe"
+    $args = "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$psPath`""
+    try {
+        & schtasks.exe /Create /TN "FlowCutter" /TR "`"$pwsh`" $args" /SC ONLOGON /RL HIGHEST /F 2>&1 | Out-Null
+        Update-AutostartLabel
+        $SettingsStatus.Text = "Autostart enabled"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a6a")
+    } catch {
+        $SettingsStatus.Text = "Failed to enable autostart: $_"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+    }
+})
+
+$BtnAutostartOff.Add_Click({
+    try {
+        & schtasks.exe /Delete /TN "FlowCutter" /F 2>&1 | Out-Null
+        Update-AutostartLabel
+        $SettingsStatus.Text = "Autostart disabled"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a6a")
+    } catch {
+        $SettingsStatus.Text = "Failed to disable autostart: $_"
+        $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
+    }
 })
 
 $BtnCheckStatus.Add_Click({
@@ -1653,6 +1741,7 @@ $BtnLaunch.Add_Click({
         Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
         if ($running) {
+            Set-RunningStrategy -BatPath $script:selectedBat
             $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
             $BtnStop.IsEnabled = $true
             $BtnLaunch.IsEnabled = $false
@@ -1678,6 +1767,7 @@ $BtnLaunch.Add_Click({
 
 $BtnStop.Add_Click({
     Stop-Winws
+    Clear-RunningStrategy
     $script:winwsProcess = $null
     $StatusText.Text = "Stopped"
     $BtnStop.IsEnabled = $false
@@ -1705,15 +1795,37 @@ $timer.Interval = [TimeSpan]::FromSeconds(2)
 $timer.Add_Tick({
     $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
     if (-not $running -and $BtnStop.IsEnabled) {
+        Clear-RunningStrategy
         $BtnStop.IsEnabled = $false
+        $BtnLaunch.IsEnabled = $true
         $StatusText.Text = "winws stopped"
-    } elseif ($running -and -not $BtnStop.IsEnabled -and $script:selectedBat) {
+    } elseif ($running -and -not $BtnStop.IsEnabled) {
         $BtnStop.IsEnabled = $true
+        $BtnLaunch.IsEnabled = $false
+        if (-not $StatusText.Text -or $StatusText.Text -notmatch '^Running:') {
+            $runningBat = Get-RunningStrategy
+            if ($runningBat) {
+                $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
+                $script:selectedBat = $runningBat.FullName
+            } else {
+                $StatusText.Text = "Running: winws (unknown strategy)"
+            }
+        }
     }
 })
 $timer.Start()
 
 # --- Init ---
 Refresh-DomainLists
+Update-AutostartLabel
+
+$runningBat = Get-RunningStrategy
+if ($runningBat) {
+    $script:selectedBat = $runningBat.FullName
+    $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
+    $BtnStop.IsEnabled = $true
+    $BtnLaunch.IsEnabled = $false
+}
+
 $null = $window.ShowDialog()
 $timer.Stop()
