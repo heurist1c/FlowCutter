@@ -1287,8 +1287,8 @@ $BtnDownloadUpdate.Add_Click({
 # --- Autostart ---
 function Get-AutostartTask {
     try {
-        $out = & schtasks.exe /Query /TN "FlowCutter" 2>&1 | Out-String
-        return $out -match "FlowCutter"
+        $val = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FlowCutter" -ErrorAction SilentlyContinue
+        return $val -ne $null
     } catch { return $false }
 }
 
@@ -1306,10 +1306,9 @@ function Update-AutostartLabel {
 
 $BtnAutostartOn.Add_Click({
     $psPath = Join-Path $rootDir "strategy_finder.ps1"
-    $pwsh = "powershell.exe"
-    $args = "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$psPath`""
+    $cmd = "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$psPath`""
     try {
-        & schtasks.exe /Create /TN "FlowCutter" /TR "`"$pwsh`" $args" /SC ONLOGON /RL HIGHEST /F 2>&1 | Out-Null
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FlowCutter" -Value $cmd -Force
         Update-AutostartLabel
         $SettingsStatus.Text = "Autostart enabled"
         $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a6a")
@@ -1321,7 +1320,7 @@ $BtnAutostartOn.Add_Click({
 
 $BtnAutostartOff.Add_Click({
     try {
-        & schtasks.exe /Delete /TN "FlowCutter" /F 2>&1 | Out-Null
+        Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FlowCutter" -Force -ErrorAction SilentlyContinue
         Update-AutostartLabel
         $SettingsStatus.Text = "Autostart disabled"
         $SettingsStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a6a")
