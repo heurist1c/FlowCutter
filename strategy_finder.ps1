@@ -1832,26 +1832,13 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    Stop-Winws
+    Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if (-not $proc) {
-        $StatusText.Text = "Failed to restart: could not launch winws"
-        $BtnLaunch.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
-        return
-    }
-    $script:winwsProcess = $proc
-    Start-Sleep -Seconds 2
-    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
-    if ($running) {
-        Set-RunningStrategy -BatPath $script:selectedBat
-        $BtnStop.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
-        $BtnLaunch.IsEnabled = $false
-        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+    if ($proc) {
+        $script:winwsProcess = $proc
     } else {
-        $StatusText.Text = "Failed: winws crashed after restart"
+        $StatusText.Text = "Failed to restart: could not launch winws"
+        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
         $BtnLaunch.IsEnabled = $true
         $BtnRestart.IsEnabled = $true
     }
@@ -1917,6 +1904,11 @@ $timer.Add_Tick({
             $BtnRestart.IsEnabled = $false
             $BtnLaunch.IsEnabled = $true
             $StatusText.Text = "winws stopped"
+            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+        } elseif ($StatusText.Text -eq 'Restarting...') {
+            $BtnLaunch.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
+            $StatusText.Text = "winws not running"
             $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
         }
         $trayIcon.Icon = New-TrayIcon $false
