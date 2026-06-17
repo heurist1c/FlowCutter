@@ -11,6 +11,7 @@ GUI-утилита для [zapret-discord-youtube](https://github.com/Flowseal/z
 </div>
 
 > **FlowCutter** — GUI-обёртка над [zapret](https://github.com/bol-van/zapret) с функцией автоподбора оптимальной стратегии обхода DPI для Discord и YouTube.
+> Если понравился проект,пожалуйста,поставьте звездочку. Мне будет очень приятно
 
 ## Возможности
 
