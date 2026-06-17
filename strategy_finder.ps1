@@ -1565,6 +1565,8 @@ function Start-Scan {
             }, [System.Windows.Threading.DispatcherPriority]::Render)
         }
 
+        try {
+
         $batFiles = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
             Where-Object { $_.Name -notlike "service*" } |
             Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) }
@@ -1740,12 +1742,19 @@ function Start-Scan {
                 $st = $window.FindName("StatusText")
                 $st.Text = "Best: $($best.Name)   |   Discord $($best.DiscordScore)%   |   YouTube $($best.YouTubeScore)%   |   Score $($best.TotalScore)%"
                 $st.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
-                $window.FindName("BtnLaunch").IsEnabled = $true
             } else {
                 $window.FindName("StatusText").Text = "No results."
             }
+            $window.FindName("BtnLaunch").IsEnabled = $true
             $window.FindName("BtnFindBest").IsEnabled = $true
         }, [System.Windows.Threading.DispatcherPriority]::Normal)
+        } catch {
+            $disp.Invoke([Action]{
+                $window.FindName("StatusText").Text = "Scan error: $($_.Exception.Message)"
+                $window.FindName("BtnFindBest").IsEnabled = $true
+                $window.FindName("BtnLaunch").IsEnabled = $true
+            }, [System.Windows.Threading.DispatcherPriority]::Normal)
+        }
     })
 
     $script:scanPending = $true
@@ -1753,6 +1762,10 @@ function Start-Scan {
         $ps.BeginInvoke() | Out-Null
     } catch {
         $script:scanPending = $false
+        if ($script:lastScanPS) { try { $script:lastScanPS.Dispose() } catch {} }
+        if ($script:lastScanRunspace) { try { $script:lastScanRunspace.Close(); $script:lastScanRunspace.Dispose() } catch {} }
+        $script:lastScanPS = $null
+        $script:lastScanRunspace = $null
         $BtnFindBest.IsEnabled = $true
         $BtnLaunch.IsEnabled = if ($script:selectedBat) { $true } else { $false }
         $StatusText.Text = "Scan failed: $($_.Exception.Message)"
@@ -1825,9 +1838,12 @@ $BtnRestart.Add_Click({
     if ($proc) {
         $script:winwsProcess = $proc
         Set-RunningStrategy -BatPath $script:selectedBat
+        $BtnStop.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
     } else {
         $StatusText.Text = "Failed to restart: could not launch winws"
         $BtnLaunch.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
         $BtnStop.IsEnabled = $false
     }
 })
@@ -1919,7 +1935,7 @@ $script:lastScanRunspace = $null
 
 function New-TrayIcon {
     param([bool]$Green)
-    if ($script:trayIconCache) { [Win32.IconHelper]::DestroyIcon($script:trayIconCache.Handle); $script:trayIconCache.Dispose() }
+    if ($script:trayIconCache) { $script:trayIconCache.Dispose() }
     $bmp = [System.Drawing.Bitmap]::new(16, 16)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -1927,7 +1943,8 @@ function New-TrayIcon {
     $brush = [System.Drawing.SolidBrush]::new($color)
     $g.FillEllipse($brush, 1, 1, 14, 14)
     $hicon = $bmp.GetHicon()
-    $icon = [System.Drawing.Icon]::FromHandle($hicon)
+    $icon = [System.Drawing.Icon]::FromHandle($hicon).Clone()
+    [Win32.IconHelper]::DestroyIcon($hicon)
     $script:trayIconCache = $icon
     $bmp.Dispose(); $g.Dispose(); $brush.Dispose()
     return $icon
@@ -1976,7 +1993,7 @@ $trayExit.Add_Click({
     Stop-Winws
     Clear-RunningStrategy
     $trayIcon.Visible = $false
-    $trayIcon.Dispose()
+    try { $trayIcon.Dispose() } catch {}
     $timer.Stop()
     $script:reallyExit = $true
     $window.Close()
@@ -2003,4 +2020,4 @@ $window.Add_Closing({
 $null = $window.ShowDialog()
 $timer.Stop()
 $trayIcon.Visible = $false
-$trayIcon.Dispose()
+try { $trayIcon.Dispose() } catch {}
