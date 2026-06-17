@@ -1832,7 +1832,11 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
+    try {
+        Get-Process -Name "winws" -EA SilentlyContinue |
+            Stop-Process -Force -PassThru -EA SilentlyContinue |
+            Wait-Process -Timeout 3 -EA SilentlyContinue
+    } catch {}
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
     if ($proc) {
         $script:winwsProcess = $proc
