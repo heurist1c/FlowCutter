@@ -1803,30 +1803,10 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    $restartTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $restartTimer.Interval = [TimeSpan]::FromMilliseconds(100)
-    $restartTimer.Add_Tick({
-        $restartTimer.Stop()
-        Stop-Winws
-        $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-        if ($proc) { $script:winwsProcess = $proc }
-        Start-Sleep -Seconds 3
-        $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
-        if ($running) {
-            Set-RunningStrategy -BatPath $script:selectedBat
-            $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6a9a7a")
-            $BtnStop.IsEnabled = $true
-            $BtnRestart.IsEnabled = $true
-            $BtnLaunch.IsEnabled = $false
-        } else {
-            $StatusText.Text = "Restart failed"
-            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a6a6a")
-            $BtnStop.IsEnabled = $false
-            $BtnRestart.IsEnabled = $false
-        }
-    })
-    $restartTimer.Start()
+    Stop-Winws
+    $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+    if ($proc) { $script:winwsProcess = $proc }
+    Set-RunningStrategy -BatPath $script:selectedBat
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
