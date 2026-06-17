@@ -1832,16 +1832,66 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
-    $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if ($proc) {
-        $script:winwsProcess = $proc
-    } else {
-        $StatusText.Text = "Failed to restart: could not launch winws"
-        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
-        $BtnLaunch.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
-    }
+    $batPath = $script:selectedBat
+    $wDir = $rootDir
+
+    $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+    $runspace.SessionStateProxy.SetVariable("batPath", $batPath)
+    $runspace.SessionStateProxy.SetVariable("wDir", $wDir)
+
+    $ps = [System.Management.Automation.PowerShell]::Create()
+    $ps.Runspace = $runspace
+    [void]$ps.AddScript({
+        $disp = $window.Dispatcher
+
+        try {
+            $procs = Get-Process -Name "winws" -EA SilentlyContinue
+            if ($procs) {
+                $procs | Stop-Process -Force -EA SilentlyContinue
+                $waited = 0
+                while ($waited -lt 5000) {
+                    if (-not (Get-Process -Name "winws" -EA SilentlyContinue)) { break }
+                    Start-Sleep -Milliseconds 200
+                    $waited += 200
+                }
+            }
+        } catch {}
+
+        $disp.Invoke([Action]{
+            $proc = Start-WinwsHidden -BatPath $batPath -WorkDir $wDir
+            if ($proc) {
+                $window.FindName("StatusText").Text = "Restarting..."
+                $window.FindName("StatusText").Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
+            } else {
+                $window.FindName("StatusText").Text = "Failed to restart: could not launch winws"
+                $window.FindName("StatusText").Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+                $window.FindName("BtnLaunch").IsEnabled = $true
+                $window.FindName("BtnRestart").IsEnabled = $true
+            }
+        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+
+        Start-Sleep -Seconds 2
+        $running = (Get-Process -Name "winws" -EA SilentlyContinue) -ne $null
+        $batName = [System.IO.Path]::GetFileNameWithoutExtension($batPath)
+        $disp.Invoke([Action]{
+            if ($running) {
+                $window.FindName("StatusText").Text = "Running: $batName"
+                $window.FindName("StatusText").Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+                $window.FindName("BtnStop").IsEnabled = $true
+                $window.FindName("BtnRestart").IsEnabled = $true
+                $window.FindName("BtnLaunch").IsEnabled = $false
+                Set-RunningStrategy -BatPath $batPath
+            } else {
+                $window.FindName("StatusText").Text = "Failed to restart winws"
+                $window.FindName("StatusText").Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+                $window.FindName("BtnLaunch").IsEnabled = $true
+                $window.FindName("BtnRestart").IsEnabled = $true
+            }
+        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+    })
+    $ps.BeginInvoke() | Out-Null
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
@@ -1887,13 +1937,16 @@ $timer.Add_Tick({
             $trayIcon.Icon = New-TrayIcon $true
             $trayIcon.Text = "FlowCutter - Running"
         }
-        if (-not $StatusText.Text -or $StatusText.Text -notmatch '^Running:') {
+        $needUpdate = -not $StatusText.Text -or $StatusText.Text -notmatch '^Running:'
+        if ($needUpdate) {
             $runningBat = Get-RunningStrategy
             if ($runningBat) {
                 $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
                 $script:selectedBat = $runningBat.FullName
+            } elseif ($script:selectedBat) {
+                $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
             } else {
-                $StatusText.Text = "Running: winws (unknown strategy)"
+                $StatusText.Text = "Running: winws"
             }
             $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
         }
