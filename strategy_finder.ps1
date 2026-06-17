@@ -1832,17 +1832,26 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    try {
-        Get-Process -Name "winws" -EA SilentlyContinue |
-            Stop-Process -Force -PassThru -EA SilentlyContinue |
-            Wait-Process -Timeout 3 -EA SilentlyContinue
-    } catch {}
+    Stop-Winws
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if ($proc) {
-        $script:winwsProcess = $proc
-        Set-RunningStrategy -BatPath $script:selectedBat
-    } else {
+    if (-not $proc) {
         $StatusText.Text = "Failed to restart: could not launch winws"
+        $BtnLaunch.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
+        return
+    }
+    $script:winwsProcess = $proc
+    Start-Sleep -Seconds 2
+    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+    if ($running) {
+        Set-RunningStrategy -BatPath $script:selectedBat
+        $BtnStop.IsEnabled = $true
+        $BtnRestart.IsEnabled = $true
+        $BtnLaunch.IsEnabled = $false
+        $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+        $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+    } else {
+        $StatusText.Text = "Failed: winws crashed after restart"
         $BtnLaunch.IsEnabled = $true
         $BtnRestart.IsEnabled = $true
     }
