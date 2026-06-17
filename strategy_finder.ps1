@@ -10,6 +10,8 @@ $runningFile = Join-Path $rootDir ".service\flowcutter.running"
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 function Set-RunningStrategy {
     param([string]$BatPath)
@@ -1836,10 +1838,14 @@ $timer.Add_Tick({
         $BtnRestart.IsEnabled = $false
         $BtnLaunch.IsEnabled = $true
         $StatusText.Text = "winws stopped"
+        $trayIcon.Icon = New-TrayIcon $false
+        $trayIcon.Text = "FlowCutter"
     } elseif ($running -and -not $BtnStop.IsEnabled) {
         $BtnStop.IsEnabled = $true
         $BtnRestart.IsEnabled = $true
         $BtnLaunch.IsEnabled = $false
+        $trayIcon.Icon = New-TrayIcon $true
+        $trayIcon.Text = "FlowCutter - Running"
         if (-not $StatusText.Text -or $StatusText.Text -notmatch '^Running:') {
             $runningBat = Get-RunningStrategy
             if ($runningBat) {
@@ -1864,7 +1870,86 @@ if ($runningBat) {
     $BtnStop.IsEnabled = $true
     $BtnRestart.IsEnabled = $true
     $BtnLaunch.IsEnabled = $false
+    $trayIcon.Icon = New-TrayIcon $true
+    $trayIcon.Text = "FlowCutter - Running"
 }
+
+# --- System Tray ---
+function New-TrayIcon {
+    param([bool]$Green)
+    $bmp = [System.Drawing.Bitmap]::new(16, 16)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $color = if ($Green) { [System.Drawing.Color]::FromArgb(106, 154, 122) } else { [System.Drawing.Color]::FromArgb(136, 136, 136) }
+    $brush = [System.Drawing.SolidBrush]::new($color)
+    $g.FillEllipse($brush, 1, 1, 14, 14)
+    $g.Dispose(); $brush.Dispose()
+    [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+}
+
+$trayIcon = [System.Windows.Forms.NotifyIcon]::new()
+$trayIcon.Icon = New-TrayIcon $false
+$trayIcon.Text = "FlowCutter"
+$trayIcon.Visible = $false
+
+$trayMenu = [System.Windows.Forms.ContextMenuStrip]::new()
+$trayShow = $trayMenu.Items.Add("Show")
+$trayStop = $trayMenu.Items.Add("Stop")
+$trayRestart = $trayMenu.Items.Add("Restart")
+$trayMenu.Items.Add("-")
+$trayExit = $trayMenu.Items.Add("Exit")
+$trayIcon.ContextMenuStrip = $trayMenu
+
+$trayShow.Add_Click({
+    $window.Show()
+    $window.WindowState = "Normal"
+    $window.Activate()
+    $trayIcon.Visible = $false
+})
+
+$trayStop.Add_Click({
+    Stop-Winws
+    Clear-RunningStrategy
+    $script:winwsProcess = $null
+    $trayIcon.Icon = New-TrayIcon $false
+})
+
+$trayRestart.Add_Click({
+    if (-not $script:selectedBat) { return }
+    Stop-Winws
+    $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
+    if ($proc) { $script:winwsProcess = $proc }
+    Set-RunningStrategy -BatPath $script:selectedBat
+    $trayIcon.Icon = New-TrayIcon $true
+})
+
+$trayExit.Add_Click({
+    Stop-Winws
+    Clear-RunningStrategy
+    $trayIcon.Visible = $false
+    $trayIcon.Dispose()
+    $timer.Stop()
+    $window.Close()
+})
+
+$trayIcon.Add_DoubleClick({
+    $window.Show()
+    $window.WindowState = "Normal"
+    $window.Activate()
+    $trayIcon.Visible = $false
+})
+
+$window.Add_Closing({
+    param($s, $e)
+    $e.Cancel = $true
+    $window.Hide()
+    $trayIcon.Visible = $true
+    $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+    $trayIcon.Icon = New-TrayIcon $running
+    $trayIcon.Text = if ($running) { "FlowCutter - Running" } else { "FlowCutter" }
+})
 
 $null = $window.ShowDialog()
 $timer.Stop()
+$trayIcon.Visible = $false
+$trayIcon.Dispose()
