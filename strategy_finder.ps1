@@ -1832,23 +1832,11 @@ $BtnRestart.Add_Click({
     $StatusText.Text = "Restarting..."
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
-    Stop-Winws
+    Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
     if ($proc) {
         $script:winwsProcess = $proc
-        Start-Sleep -Seconds 2
-        $nowRunning = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
-        if ($nowRunning) {
-            Set-RunningStrategy -BatPath $script:selectedBat
-            $BtnStop.IsEnabled = $true
-            $BtnRestart.IsEnabled = $true
-            $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
-        } else {
-            $StatusText.Text = "Failed: winws crashed after restart"
-            $BtnLaunch.IsEnabled = $true
-            $BtnRestart.IsEnabled = $true
-        }
+        Set-RunningStrategy -BatPath $script:selectedBat
     } else {
         $StatusText.Text = "Failed to restart: could not launch winws"
         $BtnLaunch.IsEnabled = $true
