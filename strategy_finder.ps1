@@ -1833,18 +1833,26 @@ $BtnRestart.Add_Click({
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
     Stop-Winws
-    Start-Sleep -Milliseconds 300
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
     if ($proc) {
         $script:winwsProcess = $proc
-        Set-RunningStrategy -BatPath $script:selectedBat
-        $BtnStop.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
+        Start-Sleep -Seconds 2
+        $nowRunning = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+        if ($nowRunning) {
+            Set-RunningStrategy -BatPath $script:selectedBat
+            $BtnStop.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
+            $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+        } else {
+            $StatusText.Text = "Failed: winws crashed after restart"
+            $BtnLaunch.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
+        }
     } else {
         $StatusText.Text = "Failed to restart: could not launch winws"
         $BtnLaunch.IsEnabled = $true
         $BtnRestart.IsEnabled = $true
-        $BtnStop.IsEnabled = $false
     }
 })
 
@@ -1883,20 +1891,14 @@ $timer.Add_Tick({
         $script:lastScanRunspace = $null
     }
 
-    if (-not $running -and $BtnStop.IsEnabled) {
-        Clear-RunningStrategy
-        $BtnStop.IsEnabled = $false
-        $BtnRestart.IsEnabled = $false
-        $BtnLaunch.IsEnabled = $true
-        $StatusText.Text = "winws stopped"
-        $trayIcon.Icon = New-TrayIcon $false
-        $trayIcon.Text = "FlowCutter"
-    } elseif ($running -and -not $BtnStop.IsEnabled) {
-        $BtnStop.IsEnabled = $true
-        $BtnRestart.IsEnabled = $true
-        $BtnLaunch.IsEnabled = $false
-        $trayIcon.Icon = New-TrayIcon $true
-        $trayIcon.Text = "FlowCutter - Running"
+    if ($running) {
+        if (-not $BtnStop.IsEnabled) {
+            $BtnStop.IsEnabled = $true
+            $BtnRestart.IsEnabled = $true
+            $BtnLaunch.IsEnabled = $false
+            $trayIcon.Icon = New-TrayIcon $true
+            $trayIcon.Text = "FlowCutter - Running"
+        }
         if (-not $StatusText.Text -or $StatusText.Text -notmatch '^Running:') {
             $runningBat = Get-RunningStrategy
             if ($runningBat) {
@@ -1905,7 +1907,19 @@ $timer.Add_Tick({
             } else {
                 $StatusText.Text = "Running: winws (unknown strategy)"
             }
+            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
         }
+    } else {
+        if ($BtnStop.IsEnabled) {
+            Clear-RunningStrategy
+            $BtnStop.IsEnabled = $false
+            $BtnRestart.IsEnabled = $false
+            $BtnLaunch.IsEnabled = $true
+            $StatusText.Text = "winws stopped"
+            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+        }
+        $trayIcon.Icon = New-TrayIcon $false
+        $trayIcon.Text = "FlowCutter"
     }
 })
 $timer.Start()
