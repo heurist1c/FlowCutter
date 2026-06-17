@@ -952,6 +952,14 @@ foreach ($f in $script:batFiles) {
 }
 if ($StrategyCombo.Items.Count -gt 0) { $StrategyCombo.SelectedIndex = 0 }
 
+$StrategyCombo.Add_SelectionChanged({
+    $idx = $StrategyCombo.SelectedIndex
+    if ($idx -ge 0 -and $idx -lt $script:batFiles.Count) {
+        $script:selectedBat = $script:batFiles[$idx].FullName
+        $BtnLaunch.IsEnabled = $true
+    }
+})
+
 # --- Tab Switching ---
 $PanelElements = @($PanelScan, $PanelDomains, $PanelSettings)
 
@@ -978,6 +986,7 @@ $TabSettings.Add_Checked({
 $BtnRunStrategy.Add_Click({
     $idx = $StrategyCombo.SelectedIndex
     if ($idx -ge 0 -and $idx -lt $script:batFiles.Count) {
+        $script:selectedBat = $script:batFiles[$idx].FullName
         Stop-Winws
         $bat = $script:batFiles[$idx]
         $proc = Start-WinwsHidden -BatPath $bat.FullName -WorkDir $rootDir
