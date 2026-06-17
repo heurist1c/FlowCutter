@@ -1547,6 +1547,8 @@ function Start-Scan {
 
     $ps = [System.Management.Automation.PowerShell]::Create()
     $ps.Runspace = $runspace
+    $script:lastScanPS = $ps
+    $script:lastScanRunspace = $runspace
 
     [void]$ps.AddScript({
         $disp = $window.Dispatcher
@@ -1602,6 +1604,8 @@ function Start-Scan {
 
             Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
             Start-Sleep -Milliseconds 200
+            $stderrLog = Join-Path $env:TEMP "flowcutter_winws_stderr.log"
+            if (Test-Path $stderrLog) { Remove-Item $stderrLog -Force -ErrorAction SilentlyContinue }
 
             $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
             $stderrLog = Join-Path $env:TEMP "flowcutter_winws_stderr.log"
@@ -1710,6 +1714,9 @@ function Start-Scan {
         $sorted = $results | Sort-Object -Property TotalScore -Descending
         Push-UI -Pct 100 -Text ""
 
+        $resultFile = Join-Path $env:TEMP "flowcutter_scan_result.txt"
+        if ($sorted.Count -gt 0) { [System.IO.File]::WriteAllText($resultFile, $sorted[0].Path) }
+
         $disp.Invoke([Action]{
             $gridData = [System.Collections.ArrayList]::new()
             $i = 0
@@ -1733,7 +1740,6 @@ function Start-Scan {
                 $st = $window.FindName("StatusText")
                 $st.Text = "Best: $($best.Name)   |   Discord $($best.DiscordScore)%   |   YouTube $($best.YouTubeScore)%   |   Score $($best.TotalScore)%"
                 $st.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888888")
-                $script:selectedBat = $best.Path
                 $window.FindName("BtnLaunch").IsEnabled = $true
             } else {
                 $window.FindName("StatusText").Text = "No results."
@@ -1742,7 +1748,15 @@ function Start-Scan {
         }, [System.Windows.Threading.DispatcherPriority]::Normal)
     })
 
-    $ps.BeginInvoke() | Out-Null
+    $script:scanPending = $true
+    try {
+        $ps.BeginInvoke() | Out-Null
+    } catch {
+        $script:scanPending = $false
+        $BtnFindBest.IsEnabled = $true
+        $BtnLaunch.IsEnabled = if ($script:selectedBat) { $true } else { $false }
+        $StatusText.Text = "Scan failed: $($_.Exception.Message)"
+    }
 }
 
 # --- Events ---
@@ -1806,9 +1820,16 @@ $BtnRestart.Add_Click({
     $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9a9a6a")
 
     Stop-Winws
+    Start-Sleep -Milliseconds 300
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if ($proc) { $script:winwsProcess = $proc }
-    Set-RunningStrategy -BatPath $script:selectedBat
+    if ($proc) {
+        $script:winwsProcess = $proc
+        Set-RunningStrategy -BatPath $script:selectedBat
+    } else {
+        $StatusText.Text = "Failed to restart: could not launch winws"
+        $BtnLaunch.IsEnabled = $true
+        $BtnStop.IsEnabled = $false
+    }
 })
 
 $BtnFindBest.Add_Click({ Start-Scan })
@@ -1832,6 +1853,20 @@ $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(2)
 $timer.Add_Tick({
     $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
+
+    if ($script:scanPending -and $BtnFindBest.IsEnabled) {
+        $script:scanPending = $false
+        $resultFile = Join-Path $env:TEMP "flowcutter_scan_result.txt"
+        if (Test-Path $resultFile) {
+            $script:selectedBat = [System.IO.File]::ReadAllText($resultFile).Trim()
+            Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+        }
+        if ($script:lastScanPS) { try { $script:lastScanPS.Dispose() } catch {} }
+        if ($script:lastScanRunspace) { try { $script:lastScanRunspace.Close(); $script:lastScanRunspace.Dispose() } catch {} }
+        $script:lastScanPS = $null
+        $script:lastScanRunspace = $null
+    }
+
     if (-not $running -and $BtnStop.IsEnabled) {
         Clear-RunningStrategy
         $BtnStop.IsEnabled = $false
@@ -1875,16 +1910,27 @@ if ($runningBat) {
 }
 
 # --- System Tray ---
+Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr handle);' -Name "IconHelper" -Namespace "Win32" -PassThru
+
+$script:trayIconCache = $null
+$script:reallyExit = $false
+$script:lastScanPS = $null
+$script:lastScanRunspace = $null
+
 function New-TrayIcon {
     param([bool]$Green)
+    if ($script:trayIconCache) { [Win32.IconHelper]::DestroyIcon($script:trayIconCache.Handle); $script:trayIconCache.Dispose() }
     $bmp = [System.Drawing.Bitmap]::new(16, 16)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $color = if ($Green) { [System.Drawing.Color]::FromArgb(106, 154, 122) } else { [System.Drawing.Color]::FromArgb(136, 136, 136) }
     $brush = [System.Drawing.SolidBrush]::new($color)
     $g.FillEllipse($brush, 1, 1, 14, 14)
-    $g.Dispose(); $brush.Dispose()
-    [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+    $hicon = $bmp.GetHicon()
+    $icon = [System.Drawing.Icon]::FromHandle($hicon)
+    $script:trayIconCache = $icon
+    $bmp.Dispose(); $g.Dispose(); $brush.Dispose()
+    return $icon
 }
 
 $trayIcon = [System.Windows.Forms.NotifyIcon]::new()
@@ -1917,10 +1963,13 @@ $trayStop.Add_Click({
 $trayRestart.Add_Click({
     if (-not $script:selectedBat) { return }
     Stop-Winws
+    Start-Sleep -Milliseconds 300
     $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
-    if ($proc) { $script:winwsProcess = $proc }
-    Set-RunningStrategy -BatPath $script:selectedBat
-    $trayIcon.Icon = New-TrayIcon $true
+    if ($proc) {
+        $script:winwsProcess = $proc
+        Set-RunningStrategy -BatPath $script:selectedBat
+        $trayIcon.Icon = New-TrayIcon $true
+    }
 })
 
 $trayExit.Add_Click({
@@ -1929,6 +1978,7 @@ $trayExit.Add_Click({
     $trayIcon.Visible = $false
     $trayIcon.Dispose()
     $timer.Stop()
+    $script:reallyExit = $true
     $window.Close()
 })
 
@@ -1941,6 +1991,7 @@ $trayIcon.Add_DoubleClick({
 
 $window.Add_Closing({
     param($s, $e)
+    if ($script:reallyExit) { return }
     $e.Cancel = $true
     $window.Hide()
     $trayIcon.Visible = $true
