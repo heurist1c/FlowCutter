@@ -1325,8 +1325,8 @@ function Update-AutostartLabel {
 }
 
 $BtnAutostartOn.Add_Click({
-    $psPath = Join-Path $rootDir "strategy_finder.ps1"
-    $cmd = "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$psPath`""
+    $batPath = Join-Path $rootDir "strategy finder.bat"
+    $cmd = "`"$batPath`""
     try {
         Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FlowCutter" -Value $cmd -Force
         Update-AutostartLabel
@@ -1957,7 +1957,7 @@ function New-TrayIcon {
     $g.FillEllipse($brush, 1, 1, 14, 14)
     $hicon = $bmp.GetHicon()
     $icon = [System.Drawing.Icon]::FromHandle($hicon).Clone()
-    [Win32.IconHelper]::DestroyIcon($hicon)
+    [void][Win32.IconHelper]::DestroyIcon($hicon)
     $script:trayIconCache = $icon
     $bmp.Dispose(); $g.Dispose(); $brush.Dispose()
     return $icon
