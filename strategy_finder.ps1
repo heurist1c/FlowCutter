@@ -109,9 +109,6 @@ function Start-WinwsHidden {
     }
 
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        Write-Host "WARNING: Not running as admin. WinDivert requires elevation."
-    }
 
     try {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -119,13 +116,20 @@ function Start-WinwsHidden {
         $psi.Arguments = $fullCmd
         $psi.WorkingDirectory = $binPath
         $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-        $psi.CreateNoWindow = $true
-        $psi.UseShellExecute = $false
-        $psi.RedirectStandardError = $true
-        $psi.RedirectStandardOutput = $true
+        if ($isAdmin) {
+            $psi.CreateNoWindow = $true
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardError = $true
+            $psi.RedirectStandardOutput = $true
+        } else {
+            $psi.UseShellExecute = $true
+            $psi.Verb = "RunAs"
+        }
         $proc = [System.Diagnostics.Process]::Start($psi)
-        $proc.BeginOutputReadLine()
-        $proc.BeginErrorReadLine()
+        if ($isAdmin) {
+            $proc.BeginOutputReadLine()
+            $proc.BeginErrorReadLine()
+        }
         return $proc
     } catch {
         Write-Host "Error launching winws.exe: $_"
