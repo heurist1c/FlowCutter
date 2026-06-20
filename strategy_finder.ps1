@@ -1939,7 +1939,7 @@ $timer.Add_Tick({
 $timer.Start()
 
 # --- System Tray ---
-Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr handle);' -Name "IconHelper" -Namespace "Win32" -PassThru
+$null = Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr handle);' -Name "IconHelper" -Namespace "Win32" -PassThru
 
 $script:trayIconCache = $null
 $script:reallyExit = $false
@@ -1972,7 +1972,7 @@ $trayMenu = [System.Windows.Forms.ContextMenuStrip]::new()
 $trayShow = $trayMenu.Items.Add("Show")
 $trayStop = $trayMenu.Items.Add("Stop")
 $trayRestart = $trayMenu.Items.Add("Restart")
-$trayMenu.Items.Add("-")
+$null = $trayMenu.Items.Add("-")
 $trayExit = $trayMenu.Items.Add("Exit")
 $trayIcon.ContextMenuStrip = $trayMenu
 
@@ -2037,12 +2037,22 @@ Update-AutostartLabel
 $runningBat = Get-RunningStrategy
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
-    $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
     $BtnStop.IsEnabled = $true
     $BtnRestart.IsEnabled = $true
     $BtnLaunch.IsEnabled = $false
-    $trayIcon.Icon = New-TrayIcon $true
-    $trayIcon.Text = "FlowCutter - Running"
+
+    $proc = Start-WinwsHidden -BatPath $runningBat.FullName -WorkDir $rootDir
+    if ($proc) {
+        $script:winwsProcess = $proc
+        $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
+        $trayIcon.Icon = New-TrayIcon $true
+        $trayIcon.Text = "FlowCutter - Running"
+    } else {
+        $StatusText.Text = "Auto-start failed: $($runningBat.Name.Replace('.bat',''))"
+        $BtnStop.IsEnabled = $false
+        $BtnRestart.IsEnabled = $false
+        $BtnLaunch.IsEnabled = $true
+    }
 }
 
 $null = $window.ShowDialog()
