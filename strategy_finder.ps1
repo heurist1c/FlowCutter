@@ -1548,6 +1548,8 @@ function Start-Scan {
     $runspace.SessionStateProxy.SetVariable("window", $window)
     $runspace.SessionStateProxy.SetVariable("gfTCP", (Get-GameFilterValues).TCP)
     $runspace.SessionStateProxy.SetVariable("gfUDP", (Get-GameFilterValues).UDP)
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $runspace.SessionStateProxy.SetVariable("isAdmin", $isAdmin)
 
     $ps = [System.Management.Automation.PowerShell]::Create()
     $ps.Runspace = $runspace
@@ -1644,7 +1646,11 @@ function Start-Scan {
                         $cmdLine = "`"$exe`" $cmd"
                         $batContent = "@echo off`r`ncd /d `"$binPath`"`r`n$cmdLine 2> `"$stderrLog`""
                         [System.IO.File]::WriteAllText($batWrapper, $batContent, [System.Text.Encoding]::Default)
-                        $scanProc = Start-Process cmd.exe "/c `"$batWrapper`"" -WindowStyle Hidden -WorkingDirectory $binPath -PassThru
+                        if ($isAdmin) {
+                            $scanProc = Start-Process cmd.exe "/c `"$batWrapper`"" -WindowStyle Hidden -WorkingDirectory $binPath -PassThru
+                        } else {
+                            $scanProc = Start-Process cmd.exe "/c `"$batWrapper`"" -WindowStyle Hidden -WorkingDirectory $binPath -PassThru -Verb RunAs
+                        }
                         if ($scanProc) { $scanPid = $scanProc.Id }
                         "winws PID: $scanPid" | Out-File $debugLog -Append -Encoding UTF8
                     } catch {
@@ -1675,8 +1681,10 @@ function Start-Scan {
                 } catch {}
             }
             if (Test-Path $stderrLog) {
-                $err = [System.IO.File]::ReadAllText($stderrLog)
-                if ($err.Trim()) { "winws STDERR: $err" | Out-File $debugLog -Append -Encoding UTF8 }
+                try {
+                    $err = [System.IO.File]::ReadAllText($stderrLog)
+                    if ($err.Trim()) { "winws STDERR: $err" | Out-File $debugLog -Append -Encoding UTF8 }
+                } catch {}
             }
             "winws running after wait: $winwsRunning" | Out-File $debugLog -Append -Encoding UTF8
 
@@ -1892,8 +1900,10 @@ $timer.Add_Tick({
         $script:scanPending = $false
         $resultFile = Join-Path $env:TEMP "flowcutter_scan_result.txt"
         if (Test-Path $resultFile) {
-            $script:selectedBat = [System.IO.File]::ReadAllText($resultFile).Trim()
-            Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+            try {
+                $script:selectedBat = [System.IO.File]::ReadAllText($resultFile).Trim()
+                Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+            } catch {}
         }
         if ($script:lastScanPS) { try { $script:lastScanPS.Dispose() } catch {} }
         if ($script:lastScanRunspace) { try { $script:lastScanRunspace.Close(); $script:lastScanRunspace.Dispose() } catch {} }
