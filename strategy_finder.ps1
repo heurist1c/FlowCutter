@@ -7,6 +7,14 @@ $listsDir = Join-Path $rootDir "lists"
 $utilsDir = Join-Path $rootDir "utils"
 $runningFile = Join-Path $rootDir ".service\flowcutter.running"
 $script:launchedStrategyName = $null
+$debugLogFile = Join-Path $env:TEMP "flowcutter_debug.log"
+
+function Write-Log {
+    param([string]$Message)
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $line = "[$ts] $Message"
+    try { [System.IO.File]::AppendAllText($debugLogFile, "$line`r`n", [System.Text.Encoding]::UTF8) } catch {}
+}
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -19,27 +27,36 @@ function Set-RunningStrategy {
     $dir = Split-Path $runningFile
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $batName = [System.IO.Path]::GetFileNameWithoutExtension($BatPath)
-    Write-Host "Set-RunningStrategy: BatPath=$BatPath batName=$batName runningFile=$runningFile"
+    Write-Log "Set-RunningStrategy: BatPath=$BatPath batName=$batName runningFile=$runningFile rootDir=$rootDir"
+    Write-Log "Set-RunningStrategy: .service dir exists=$(Test-Path $dir)"
     try {
         [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
-        Write-Host "Set-RunningStrategy: wrote OK, exists=$(Test-Path $runningFile)"
+        $exists = Test-Path $runningFile
+        $size = if ($exists) { (Get-Item $runningFile).Length } else { -1 }
+        Write-Log "Set-RunningStrategy: wrote OK exists=$exists size=$size"
     } catch {
-        Write-Host "Set-RunningStrategy: FAILED $_"
+        Write-Log "Set-RunningStrategy: FAILED $($_.Exception.Message)"
     }
     $script:launchedStrategyName = $batName
 }
 
 function Clear-RunningStrategy {
+    Write-Log "Clear-RunningStrategy: removing $runningFile"
     if (Test-Path $runningFile) { Remove-Item $runningFile -Force -ErrorAction SilentlyContinue }
+    Write-Log "Clear-RunningStrategy: exists after=$(Test-Path $runningFile)"
 }
 
 function Get-RunningStrategy {
-    if (-not (Test-Path $runningFile)) { return $null }
+    $exists = Test-Path $runningFile
+    Write-Log "Get-RunningStrategy: runningFile=$runningFile exists=$exists"
+    if (-not $exists) { return $null }
     $name = [System.IO.File]::ReadAllText($runningFile).Trim()
+    Write-Log "Get-RunningStrategy: name='$name'"
     if (-not $name) { return $null }
     $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
         Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -ieq $name } |
         Select-Object -First 1
+    Write-Log "Get-RunningStrategy: match=$($match -ne $null) matchName=$($match.Name)"
     return $match
 }
 
@@ -1803,6 +1820,7 @@ function Start-Scan {
 $BtnClose.Add_Click({ $window.Close() })
 
 $BtnLaunch.Add_Click({
+    Write-Log "Launch clicked: selectedBat=$($script:selectedBat)"
     if ($script:selectedBat) {
         Stop-Winws
         $script:launchedStrategyName = [System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)
@@ -2095,10 +2113,18 @@ $window.Add_Closing({
 })
 
 # --- Init ---
+Write-Log "Init: rootDir=$rootDir runningFile=$runningFile"
+Write-Log "Init: .running exists=$(Test-Path $runningFile)"
+if (Test-Path $runningFile) {
+    $raw = [System.IO.File]::ReadAllText($runningFile).Trim()
+    Write-Log "Init: .running content='$raw'"
+}
+Write-Log "Init: batFiles count=$($script:batFiles.Count)"
 Refresh-DomainLists
 Update-AutostartLabel
 
 $runningBat = Get-RunningStrategy
+Write-Log "Init: Get-RunningStrategy returned=$($runningBat -ne $null) name=$($runningBat.Name)"
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
     $script:launchedStrategyName = $runningBat.Name.Replace('.bat','')
