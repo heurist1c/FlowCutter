@@ -1660,8 +1660,31 @@ $BtnUpdateHosts.Add_Click({
 })
 
 # --- Strategy Finder (background runspace) ---
+function Stop-Scan {
+    Get-Process -Name "winws" -EA SilentlyContinue | Stop-Process -Force -EA SilentlyContinue
+    if ($script:lastScanPS) {
+        try { $script:lastScanPS.Stop() } catch {}
+        try { $script:lastScanPS.Dispose() } catch {}
+        $script:lastScanPS = $null
+    }
+    if ($script:lastScanRunspace) {
+        try { $script:lastScanRunspace.Close() } catch {}
+        try { $script:lastScanRunspace.Dispose() } catch {}
+        $script:lastScanRunspace = $null
+    }
+    $script:scanPending = $false
+    $BtnFindBest.Content = "Find Best"
+    $BtnFindBest.IsEnabled = $true
+    $BtnLaunch.IsEnabled = if ($script:selectedBat) { $true } else { $false }
+    $ProgressFill.Width = 0
+    $ProgressText.Text = ""
+    $StatusText.Text = "Scan cancelled"
+    $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+}
+
 function Start-Scan {
     $BtnFindBest.IsEnabled = $false
+    $BtnFindBest.Content = "Stop Scan"
     $BtnLaunch.IsEnabled = $false
     $BtnStop.IsEnabled = $false
     $BtnRestart.IsEnabled = $false
@@ -1888,11 +1911,13 @@ function Start-Scan {
                 $window.FindName("StatusText").Text = "No results."
             }
             $window.FindName("BtnLaunch").IsEnabled = $true
+            $window.FindName("BtnFindBest").Content = "Find Best"
             $window.FindName("BtnFindBest").IsEnabled = $true
         }, [System.Windows.Threading.DispatcherPriority]::Normal)
         } catch {
             $disp.Invoke([Action]{
                 $window.FindName("StatusText").Text = "Scan error: $($_.Exception.Message)"
+                $window.FindName("BtnFindBest").Content = "Find Best"
                 $window.FindName("BtnFindBest").IsEnabled = $true
                 $window.FindName("BtnLaunch").IsEnabled = $true
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
@@ -1908,6 +1933,7 @@ function Start-Scan {
         if ($script:lastScanRunspace) { try { $script:lastScanRunspace.Close(); $script:lastScanRunspace.Dispose() } catch {} }
         $script:lastScanPS = $null
         $script:lastScanRunspace = $null
+        $BtnFindBest.Content = "Find Best"
         $BtnFindBest.IsEnabled = $true
         $BtnLaunch.IsEnabled = if ($script:selectedBat) { $true } else { $false }
         $StatusText.Text = "Scan failed: $($_.Exception.Message)"
@@ -2007,7 +2033,13 @@ $BtnRestart.Add_Click({
     }
 })
 
-$BtnFindBest.Add_Click({ Start-Scan })
+$BtnFindBest.Add_Click({
+    if ($BtnFindBest.Content -eq "Stop Scan") {
+        Stop-Scan
+    } else {
+        Start-Scan
+    }
+})
 
 $ResultsGrid.Add_SelectionChanged({
     $sel = $ResultsGrid.SelectedItem
