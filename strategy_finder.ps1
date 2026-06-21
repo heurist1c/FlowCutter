@@ -7,6 +7,7 @@ $listsDir = Join-Path $rootDir "lists"
 $utilsDir = Join-Path $rootDir "utils"
 $runningFile = Join-Path $rootDir ".service\flowcutter.running"
 $backupRunningFile = Join-Path $env:TEMP "flowcutter_strategy.txt"
+$lastUsedFile = Join-Path $rootDir ".service\flowcutter_lastused"
 $script:launchedStrategyName = $null
 $debugLogFile = Join-Path $env:TEMP "flowcutter_debug.log"
 
@@ -42,6 +43,14 @@ function Set-RunningStrategy {
         Write-Log "Set-RunningStrategy: wrote backup OK exists=$(Test-Path $backupRunningFile)"
     } catch {
         Write-Log "Set-RunningStrategy: backup FAILED $($_.Exception.Message)"
+    }
+    try {
+        $dir2 = Split-Path $lastUsedFile
+        if (-not (Test-Path $dir2)) { New-Item -ItemType Directory -Path $dir2 -Force | Out-Null }
+        [System.IO.File]::WriteAllText($lastUsedFile, $batName, [System.Text.Encoding]::UTF8)
+        Write-Log "Set-RunningStrategy: wrote lastUsed OK"
+    } catch {
+        Write-Log "Set-RunningStrategy: lastUsed FAILED $($_.Exception.Message)"
     }
     $script:launchedStrategyName = $batName
 }
@@ -111,8 +120,11 @@ function Find-StrategyByProcess {
 
     foreach ($cp in $winwsProcs) {
         $cmdLine = $cp.CommandLine
-        Write-Log "Find-StrategyByProcess: PID=$($cp.ProcessId) cmd=$cmdLine"
         if (-not $cmdLine) { continue }
+        $cmdNorm = $cmdLine -replace '\\', '/'
+        Write-Log "Find-StrategyByProcess: PID=$($cp.ProcessId)"
+        $bestMatch = $null
+        $bestLen = 0
         foreach ($bat in $batFiles) {
             $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
             $inCommand = $false
@@ -139,12 +151,21 @@ function Find-StrategyByProcess {
             $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
             $fullCmd = $fullCmd -replace '%GameFilterTCP%', $gf.TCP
             $fullCmd = $fullCmd -replace '%GameFilterUDP%', $gf.UDP
-            $cmdKey = $fullCmd.Substring(0, [Math]::Min(80, $fullCmd.Length))
-            Write-Log "Find-StrategyByProcess: checking $($bat.Name) key=$cmdKey"
-            if ($cmdLine -like "*$cmdKey*") {
-                Write-Log "Find-StrategyByProcess: MATCHED $($bat.Name)"
-                return $bat
+            $fullCmdNorm = $fullCmd -replace '\\', '/'
+            $checkLen = [Math]::Min(200, $fullCmdNorm.Length)
+            $checkStr = $fullCmdNorm.Substring(0, $checkLen)
+            if ($cmdNorm.Contains($checkStr)) {
+                $matchLen = $fullCmdNorm.Length
+                if ($matchLen -gt $bestLen) {
+                    $bestMatch = $bat
+                    $bestLen = $matchLen
+                    Write-Log "Find-StrategyByProcess: candidate $($bat.Name) (len=$matchLen)"
+                }
             }
+        }
+        if ($bestMatch) {
+            Write-Log "Find-StrategyByProcess: BEST MATCH = $($bestMatch.Name)"
+            return $bestMatch
         }
     }
     Write-Log "Find-StrategyByProcess: no match found"
@@ -2066,6 +2087,7 @@ $timer.Add_Tick({
                         $StatusText.Text = "Running: $($detected.Name.Replace('.bat',''))"
                         $script:selectedBat = $detected.FullName
                         $script:launchedStrategyName = $detected.Name.Replace('.bat','')
+                        Set-RunningStrategy -BatPath $detected.FullName
                     } else {
                         $storedName = Get-RunningStrategyName
                         if ($storedName) {
@@ -2204,8 +2226,8 @@ $window.Add_Closing({
 })
 
 # --- Init ---
-Write-Log "Init: rootDir=$rootDir runningFile=$runningFile backupFile=$backupRunningFile"
-Write-Log "Init: .running exists=$(Test-Path $runningFile) backup exists=$(Test-Path $backupRunningFile)"
+Write-Log "Init: rootDir=$rootDir runningFile=$runningFile backupFile=$backupRunningFile lastUsed=$lastUsedFile"
+Write-Log "Init: .running exists=$(Test-Path $runningFile) backup exists=$(Test-Path $backupRunningFile) lastUsed exists=$(Test-Path $lastUsedFile)"
 Refresh-DomainLists
 Update-AutostartLabel
 
@@ -2214,6 +2236,9 @@ Write-Log "Init: Get-RunningStrategy returned=$($runningBat -ne $null) name=$($r
 if (-not $runningBat -and (Get-Process -Name "winws" -ErrorAction SilentlyContinue)) {
     Write-Log "Init: no strategy file, but winws is running - trying Find-StrategyByProcess"
     $runningBat = Find-StrategyByProcess
+    if ($runningBat) {
+        Set-RunningStrategy -BatPath $runningBat.FullName
+    }
 }
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
@@ -2232,11 +2257,19 @@ if ($runningBat) {
     $trayIcon.Icon = New-TrayIcon $true
     $trayIcon.Text = "FlowCutter - Running"
 } else {
-    $storedName = Get-RunningStrategyName
-    if ($storedName) {
-        $script:launchedStrategyName = $storedName
+    $lastUsedName = $null
+    if (Test-Path $lastUsedFile) {
+        try { $lastUsedName = [System.IO.File]::ReadAllText($lastUsedFile).Trim() } catch {}
+        Write-Log "Init: lastUsed=$lastUsedName"
+    }
+    $selectName = $lastUsedName
+    if (-not $selectName) {
+        $selectName = Get-RunningStrategyName
+    }
+    if ($selectName) {
+        $script:launchedStrategyName = $selectName
         for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
-            if ($StrategyCombo.Items[$i] -ieq $storedName) {
+            if ($StrategyCombo.Items[$i] -ieq $selectName) {
                 $StrategyCombo.SelectedIndex = $i
                 $script:selectedBat = $script:batFiles[$i].FullName
                 break
