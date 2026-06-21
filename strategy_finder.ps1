@@ -2070,21 +2070,29 @@ Update-AutostartLabel
 $runningBat = Get-RunningStrategy
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
+    for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
+        if ($StrategyCombo.Items[$i] -eq $runningBat.Name.Replace('.bat','')) {
+            $StrategyCombo.SelectedIndex = $i
+            break
+        }
+    }
     $BtnStop.IsEnabled = $true
     $BtnRestart.IsEnabled = $true
     $BtnLaunch.IsEnabled = $false
-
-    $proc = Start-WinwsHidden -BatPath $runningBat.FullName -WorkDir $rootDir
-    if ($proc) {
-        $script:winwsProcess = $proc
-        $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
-        $trayIcon.Icon = New-TrayIcon $true
-        $trayIcon.Text = "FlowCutter - Running"
-    } else {
-        $StatusText.Text = "Auto-start failed: $($runningBat.Name.Replace('.bat',''))"
-        $BtnStop.IsEnabled = $false
-        $BtnRestart.IsEnabled = $false
-        $BtnLaunch.IsEnabled = $true
+    $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
+    $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+    $trayIcon.Icon = New-TrayIcon $true
+    $trayIcon.Text = "FlowCutter - Running"
+} else {
+    $storedName = Get-RunningStrategyName
+    if ($storedName) {
+        for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
+            if ($StrategyCombo.Items[$i] -ieq $storedName) {
+                $StrategyCombo.SelectedIndex = $i
+                $script:selectedBat = $script:batFiles[$i].FullName
+                break
+            }
+        }
     }
 }
 
