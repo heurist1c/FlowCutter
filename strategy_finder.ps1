@@ -1911,29 +1911,38 @@ $timer.Add_Tick({
         $script:lastScanRunspace = $null
     }
 
+    $isScanning = -not $BtnFindBest.IsEnabled
+
     if ($running) {
-        if (-not $BtnStop.IsEnabled) {
-            $BtnStop.IsEnabled = $true
-            $BtnRestart.IsEnabled = $true
-            $BtnLaunch.IsEnabled = $false
-            $trayIcon.Icon = New-TrayIcon $true
-            $trayIcon.Text = "FlowCutter - Running"
-        }
-        $needUpdate = -not $StatusText.Text -or $StatusText.Text -notmatch '^Running:'
-        if ($needUpdate) {
-            $runningBat = Get-RunningStrategy
-            if ($runningBat) {
-                $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
-                $script:selectedBat = $runningBat.FullName
-            } elseif ($script:selectedBat) {
-                $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-            } else {
-                $StatusText.Text = "Running: winws"
+        if (-not $isScanning) {
+            if (-not $BtnStop.IsEnabled) {
+                $BtnStop.IsEnabled = $true
+                $BtnRestart.IsEnabled = $true
+                $BtnLaunch.IsEnabled = $false
+                $trayIcon.Icon = New-TrayIcon $true
+                $trayIcon.Text = "FlowCutter - Running"
             }
-            $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+            $needUpdate = -not $StatusText.Text -or $StatusText.Text -notmatch '^Running:'
+            if ($needUpdate) {
+                $runningBat = Get-RunningStrategy
+                if ($runningBat) {
+                    $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
+                    $script:selectedBat = $runningBat.FullName
+                } elseif ($script:selectedBat) {
+                    $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
+                } elseif ($StrategyCombo.SelectedItem) {
+                    $StatusText.Text = "Running: $($StrategyCombo.SelectedItem)"
+                } else {
+                    $StatusText.Text = "Running: winws"
+                }
+                $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
+            }
         }
     } else {
-        if ($BtnStop.IsEnabled) {
+        if ($isScanning) {
+            $trayIcon.Icon = New-TrayIcon $false
+            $trayIcon.Text = "FlowCutter"
+        } elseif ($BtnStop.IsEnabled) {
             Clear-RunningStrategy
             $BtnStop.IsEnabled = $false
             $BtnRestart.IsEnabled = $false
