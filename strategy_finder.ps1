@@ -29,9 +29,18 @@ function Get-RunningStrategy {
     if (-not (Test-Path $runningFile)) { return $null }
     $name = [System.IO.File]::ReadAllText($runningFile).Trim()
     if (-not $name) { return $null }
-    $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
-        Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -ieq $name } |
+    $allBats = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
+        Where-Object { $_.Name -notlike "service*" }
+    $debugFile = Join-Path $env:TEMP "flowcutter_running_debug.txt"
+    "runningFile: $runningFile" | Out-File $debugFile
+    "stored name: [$name]" | Out-File $debugFile -Append
+    "rootDir: $rootDir" | Out-File $debugFile -Append
+    "bat files found: $($allBats.Count)" | Out-File $debugFile -Append
+    foreach ($b in $allBats) { "  bat: [$($b.Name.Replace('.bat',''))] ieq [$name] => $($_.Name.Replace('.bat','') -ieq $name)" | Out-File $debugFile -Append }
+    $match = $allBats |
+        Where-Object { $_.Name.Replace('.bat','') -ieq $name } |
         Select-Object -First 1
+    "match: $($match -ne $null)" | Out-File $debugFile -Append
     return $match
 }
 
