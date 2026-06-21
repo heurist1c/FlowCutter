@@ -2112,7 +2112,6 @@ $timer.Add_Tick({
                         $StatusText.Text = "Running: $($detected.Name.Replace('.bat',''))"
                         $script:selectedBat = $detected.FullName
                         $script:launchedStrategyName = $detected.Name.Replace('.bat','')
-                        Set-RunningStrategy -BatPath $detected.FullName
                     } else {
                         $storedName = Get-RunningStrategyName
                         if ($storedName) {
