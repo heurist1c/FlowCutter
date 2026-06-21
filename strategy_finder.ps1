@@ -117,14 +117,13 @@ function Find-StrategyByProcess {
         Where-Object { $_.Name -notlike "service*" }
     $binPath = (Join-Path $rootDir "bin") + "\"
     $listsPath = (Join-Path $rootDir "lists") + "\"
+    $gf = Get-GameFilterValues
 
     foreach ($cp in $winwsProcs) {
         $cmdLine = $cp.CommandLine
         if (-not $cmdLine) { continue }
-        $cmdNorm = $cmdLine -replace '\\', '/'
+        $cmdNorm = ($cmdLine -replace '\\', '/') -replace '\s+', ' '
         Write-Log "Find-StrategyByProcess: PID=$($cp.ProcessId)"
-        $bestMatch = $null
-        $bestLen = 0
         foreach ($bat in $batFiles) {
             $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
             $inCommand = $false
@@ -146,29 +145,18 @@ function Find-StrategyByProcess {
             }
             if ($cmdParts.Count -eq 0) { continue }
             $fullCmd = ($cmdParts -join ' ') -replace ', ', ' '
-            $gf = Get-GameFilterValues
             $fullCmd = $fullCmd -replace '%BIN%', $binPath
             $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
             $fullCmd = $fullCmd -replace '%GameFilterTCP%', $gf.TCP
             $fullCmd = $fullCmd -replace '%GameFilterUDP%', $gf.UDP
-            $fullCmdNorm = $fullCmd -replace '\\', '/'
-            $checkLen = [Math]::Min(200, $fullCmdNorm.Length)
-            $checkStr = $fullCmdNorm.Substring(0, $checkLen)
-            if ($cmdNorm.Contains($checkStr)) {
-                $matchLen = $fullCmdNorm.Length
-                if ($matchLen -gt $bestLen) {
-                    $bestMatch = $bat
-                    $bestLen = $matchLen
-                    Write-Log "Find-StrategyByProcess: candidate $($bat.Name) (len=$matchLen)"
-                }
+            $fullCmdNorm = ($fullCmd -replace '\\', '/') -replace '\s+', ' '
+            if ($cmdNorm.Contains($fullCmdNorm)) {
+                Write-Log "Find-StrategyByProcess: EXACT MATCH $($bat.Name)"
+                return $bat
             }
         }
-        if ($bestMatch) {
-            Write-Log "Find-StrategyByProcess: BEST MATCH = $($bestMatch.Name)"
-            return $bestMatch
-        }
     }
-    Write-Log "Find-StrategyByProcess: no match found"
+    Write-Log "Find-StrategyByProcess: no exact match found"
     return $null
 }
 
@@ -1100,6 +1088,11 @@ $StrategyCombo.Add_SelectionChanged({
     if ($idx -ge 0 -and $idx -lt $script:batFiles.Count) {
         $script:selectedBat = $script:batFiles[$idx].FullName
         $BtnLaunch.IsEnabled = $true
+        try {
+            $dir = Split-Path $lastUsedFile
+            if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+            [System.IO.File]::WriteAllText($lastUsedFile, $StrategyCombo.Items[$idx], [System.Text.Encoding]::UTF8)
+        } catch {}
     }
 })
 
