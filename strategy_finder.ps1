@@ -6,6 +6,7 @@ $binDir = Join-Path $rootDir "bin"
 $listsDir = Join-Path $rootDir "lists"
 $utilsDir = Join-Path $rootDir "utils"
 $runningFile = Join-Path $rootDir ".service\flowcutter.running"
+$backupRunningFile = Join-Path $env:TEMP "flowcutter_strategy.txt"
 $script:launchedStrategyName = $null
 $debugLogFile = Join-Path $env:TEMP "flowcutter_debug.log"
 
@@ -28,28 +29,51 @@ function Set-RunningStrategy {
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $batName = [System.IO.Path]::GetFileNameWithoutExtension($BatPath)
     Write-Log "Set-RunningStrategy: BatPath=$BatPath batName=$batName runningFile=$runningFile rootDir=$rootDir"
-    Write-Log "Set-RunningStrategy: .service dir exists=$(Test-Path $dir)"
     try {
         [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
         $exists = Test-Path $runningFile
         $size = if ($exists) { (Get-Item $runningFile).Length } else { -1 }
-        Write-Log "Set-RunningStrategy: wrote OK exists=$exists size=$size"
+        Write-Log "Set-RunningStrategy: wrote .running OK exists=$exists size=$size"
     } catch {
-        Write-Log "Set-RunningStrategy: FAILED $($_.Exception.Message)"
+        Write-Log "Set-RunningStrategy: .running FAILED $($_.Exception.Message)"
+    }
+    try {
+        [System.IO.File]::WriteAllText($backupRunningFile, $batName, [System.Text.Encoding]::UTF8)
+        Write-Log "Set-RunningStrategy: wrote backup OK exists=$(Test-Path $backupRunningFile)"
+    } catch {
+        Write-Log "Set-RunningStrategy: backup FAILED $($_.Exception.Message)"
     }
     $script:launchedStrategyName = $batName
 }
 
 function Clear-RunningStrategy {
-    Write-Log "Clear-RunningStrategy: removing $runningFile"
+    Write-Log "Clear-RunningStrategy: removing files"
     if (Test-Path $runningFile) { Remove-Item $runningFile -Force -ErrorAction SilentlyContinue }
-    Write-Log "Clear-RunningStrategy: exists after=$(Test-Path $runningFile)"
+    if (Test-Path $backupRunningFile) { Remove-Item $backupRunningFile -Force -ErrorAction SilentlyContinue }
+    Write-Log "Clear-RunningStrategy: .running exists=$(Test-Path $runningFile) backup exists=$(Test-Path $backupRunningFile)"
 }
 
 function Get-RunningStrategy {
     $exists = Test-Path $runningFile
     Write-Log "Get-RunningStrategy: runningFile=$runningFile exists=$exists"
-    if (-not $exists) { return $null }
+    if (-not $exists) {
+        $bakExists = Test-Path $backupRunningFile
+        Write-Log "Get-RunningStrategy: backup=$backupRunningFile exists=$bakExists"
+        if ($bakExists) {
+            $name = [System.IO.File]::ReadAllText($backupRunningFile).Trim()
+            Write-Log "Get-RunningStrategy: backup name='$name'"
+            if ($name) {
+                $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
+                    Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -ieq $name } |
+                    Select-Object -First 1
+                if ($match) {
+                    Write-Log "Get-RunningStrategy: matched from backup $($match.Name)"
+                    return $match
+                }
+            }
+        }
+        return $null
+    }
     $name = [System.IO.File]::ReadAllText($runningFile).Trim()
     Write-Log "Get-RunningStrategy: name='$name'"
     if (-not $name) { return $null }
@@ -61,10 +85,70 @@ function Get-RunningStrategy {
 }
 
 function Get-RunningStrategyName {
-    if (-not (Test-Path $runningFile)) { return $null }
-    $name = [System.IO.File]::ReadAllText($runningFile).Trim()
+    $name = $null
+    if (Test-Path $runningFile) {
+        $name = [System.IO.File]::ReadAllText($runningFile).Trim()
+    }
+    if (-not $name -and (Test-Path $backupRunningFile)) {
+        $name = [System.IO.File]::ReadAllText($backupRunningFile).Trim()
+    }
     if (-not $name) { return $null }
     return $name
+}
+
+function Find-StrategyByProcess {
+    $winwsProcs = Get-CimInstance Win32_Process -Filter "Name='winws.exe'" -ErrorAction SilentlyContinue
+    if (-not $winwsProcs) {
+        Write-Log "Find-StrategyByProcess: no winws processes"
+        return $null
+    }
+    Write-Log "Find-StrategyByProcess: found $($winwsProcs.Count) winws process(es)"
+
+    $batFiles = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
+        Where-Object { $_.Name -notlike "service*" }
+    $binPath = (Join-Path $rootDir "bin") + "\"
+    $listsPath = (Join-Path $rootDir "lists") + "\"
+
+    foreach ($cp in $winwsProcs) {
+        $cmdLine = $cp.CommandLine
+        Write-Log "Find-StrategyByProcess: PID=$($cp.ProcessId) cmd=$cmdLine"
+        if (-not $cmdLine) { continue }
+        foreach ($bat in $batFiles) {
+            $rawLines = Get-Content $bat.FullName -ErrorAction SilentlyContinue
+            $inCommand = $false
+            $cmdParts = @()
+            foreach ($line in $rawLines) {
+                $trimmed = $line.Trim()
+                if ($trimmed -match 'winws\.exe') {
+                    $afterExe = ($trimmed -replace '.*winws\.exe["\s]*', '').TrimEnd('^').TrimEnd(',').Trim()
+                    $cmdParts += $afterExe
+                    $inCommand = $true
+                    continue
+                }
+                if ($inCommand) {
+                    if ($trimmed) {
+                        if ($trimmed.EndsWith('^')) { $cmdParts += $trimmed.TrimEnd('^').Trim() }
+                        else { $cmdParts += $trimmed; $inCommand = $false }
+                    }
+                }
+            }
+            if ($cmdParts.Count -eq 0) { continue }
+            $fullCmd = ($cmdParts -join ' ') -replace ', ', ' '
+            $gf = Get-GameFilterValues
+            $fullCmd = $fullCmd -replace '%BIN%', $binPath
+            $fullCmd = $fullCmd -replace '%LISTS%', $listsPath
+            $fullCmd = $fullCmd -replace '%GameFilterTCP%', $gf.TCP
+            $fullCmd = $fullCmd -replace '%GameFilterUDP%', $gf.UDP
+            $cmdKey = $fullCmd.Substring(0, [Math]::Min(80, $fullCmd.Length))
+            Write-Log "Find-StrategyByProcess: checking $($bat.Name) key=$cmdKey"
+            if ($cmdLine -like "*$cmdKey*") {
+                Write-Log "Find-StrategyByProcess: MATCHED $($bat.Name)"
+                return $bat
+            }
+        }
+    }
+    Write-Log "Find-StrategyByProcess: no match found"
+    return $null
 }
 
 # --- Utility Functions ---
@@ -1977,11 +2061,18 @@ $timer.Add_Tick({
                 } elseif ($script:selectedBat) {
                     $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
                 } else {
-                    $storedName = Get-RunningStrategyName
-                    if ($storedName) {
-                        $StatusText.Text = "Running: $storedName"
+                    $detected = Find-StrategyByProcess
+                    if ($detected) {
+                        $StatusText.Text = "Running: $($detected.Name.Replace('.bat',''))"
+                        $script:selectedBat = $detected.FullName
+                        $script:launchedStrategyName = $detected.Name.Replace('.bat','')
                     } else {
-                        $StatusText.Text = "Running: winws"
+                        $storedName = Get-RunningStrategyName
+                        if ($storedName) {
+                            $StatusText.Text = "Running: $storedName"
+                        } else {
+                            $StatusText.Text = "Running: winws"
+                        }
                     }
                 }
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
@@ -2113,18 +2204,17 @@ $window.Add_Closing({
 })
 
 # --- Init ---
-Write-Log "Init: rootDir=$rootDir runningFile=$runningFile"
-Write-Log "Init: .running exists=$(Test-Path $runningFile)"
-if (Test-Path $runningFile) {
-    $raw = [System.IO.File]::ReadAllText($runningFile).Trim()
-    Write-Log "Init: .running content='$raw'"
-}
-Write-Log "Init: batFiles count=$($script:batFiles.Count)"
+Write-Log "Init: rootDir=$rootDir runningFile=$runningFile backupFile=$backupRunningFile"
+Write-Log "Init: .running exists=$(Test-Path $runningFile) backup exists=$(Test-Path $backupRunningFile)"
 Refresh-DomainLists
 Update-AutostartLabel
 
 $runningBat = Get-RunningStrategy
 Write-Log "Init: Get-RunningStrategy returned=$($runningBat -ne $null) name=$($runningBat.Name)"
+if (-not $runningBat -and (Get-Process -Name "winws" -ErrorAction SilentlyContinue)) {
+    Write-Log "Init: no strategy file, but winws is running - trying Find-StrategyByProcess"
+    $runningBat = Find-StrategyByProcess
+}
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
     $script:launchedStrategyName = $runningBat.Name.Replace('.bat','')
