@@ -30,9 +30,16 @@ function Get-RunningStrategy {
     $name = [System.IO.File]::ReadAllText($runningFile).Trim()
     if (-not $name) { return $null }
     $match = Get-ChildItem -Path $rootDir -Filter "general*.bat" |
-        Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -eq $name } |
+        Where-Object { $_.Name -notlike "service*" -and $_.Name.Replace('.bat','') -ieq $name } |
         Select-Object -First 1
     return $match
+}
+
+function Get-RunningStrategyName {
+    if (-not (Test-Path $runningFile)) { return $null }
+    $name = [System.IO.File]::ReadAllText($runningFile).Trim()
+    if (-not $name) { return $null }
+    return $name
 }
 
 # --- Utility Functions ---
@@ -1930,10 +1937,13 @@ $timer.Add_Tick({
                     $script:selectedBat = $runningBat.FullName
                 } elseif ($script:selectedBat) {
                     $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
-                } elseif ($StrategyCombo.SelectedItem) {
-                    $StatusText.Text = "Running: $($StrategyCombo.SelectedItem)"
                 } else {
-                    $StatusText.Text = "Running: winws"
+                    $storedName = Get-RunningStrategyName
+                    if ($storedName) {
+                        $StatusText.Text = "Running: $storedName"
+                    } else {
+                        $StatusText.Text = "Running: winws"
+                    }
                 }
                 $StatusText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555555")
             }
