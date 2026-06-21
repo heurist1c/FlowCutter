@@ -1797,6 +1797,7 @@ $BtnClose.Add_Click({ $window.Close() })
 $BtnLaunch.Add_Click({
     if ($script:selectedBat) {
         Stop-Winws
+        Set-RunningStrategy -BatPath $script:selectedBat
         $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
         if (-not $proc) {
             $StatusText.Text = "Failed to start: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)) (could not launch process)"
@@ -1808,7 +1809,6 @@ $BtnLaunch.Add_Click({
         Start-Sleep -Seconds 3
         $running = (Get-Process -Name "winws" -ErrorAction SilentlyContinue) -ne $null
         if ($running) {
-            Set-RunningStrategy -BatPath $script:selectedBat
             $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
             $BtnStop.IsEnabled = $true
             $BtnRestart.IsEnabled = $true
