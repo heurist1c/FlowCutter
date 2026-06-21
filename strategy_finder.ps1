@@ -6,6 +6,7 @@ $binDir = Join-Path $rootDir "bin"
 $listsDir = Join-Path $rootDir "lists"
 $utilsDir = Join-Path $rootDir "utils"
 $runningFile = Join-Path $rootDir ".service\flowcutter.running"
+$script:launchedStrategyName = $null
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -18,7 +19,14 @@ function Set-RunningStrategy {
     $dir = Split-Path $runningFile
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $batName = [System.IO.Path]::GetFileNameWithoutExtension($BatPath)
-    [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
+    Write-Host "Set-RunningStrategy: BatPath=$BatPath batName=$batName runningFile=$runningFile"
+    try {
+        [System.IO.File]::WriteAllText($runningFile, $batName, [System.Text.Encoding]::ASCII)
+        Write-Host "Set-RunningStrategy: wrote OK, exists=$(Test-Path $runningFile)"
+    } catch {
+        Write-Host "Set-RunningStrategy: FAILED $_"
+    }
+    $script:launchedStrategyName = $batName
 }
 
 function Clear-RunningStrategy {
@@ -1797,6 +1805,7 @@ $BtnClose.Add_Click({ $window.Close() })
 $BtnLaunch.Add_Click({
     if ($script:selectedBat) {
         Stop-Winws
+        $script:launchedStrategyName = [System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)
         Set-RunningStrategy -BatPath $script:selectedBat
         $proc = Start-WinwsHidden -BatPath $script:selectedBat -WorkDir $rootDir
         if (-not $proc) {
@@ -1837,6 +1846,7 @@ $BtnLaunch.Add_Click({
 $BtnStop.Add_Click({
     Stop-Winws
     Clear-RunningStrategy
+    $script:launchedStrategyName = $null
     $script:winwsProcess = $null
     $StatusText.Text = "Stopped"
     $BtnStop.IsEnabled = $false
@@ -1928,6 +1938,15 @@ $timer.Add_Tick({
                 $BtnLaunch.IsEnabled = $false
                 $trayIcon.Icon = New-TrayIcon $true
                 $trayIcon.Text = "FlowCutter - Running"
+                if ($script:selectedBat) {
+                    $selName = [System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)
+                    for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
+                        if ($StrategyCombo.Items[$i] -eq $selName) {
+                            if ($StrategyCombo.SelectedIndex -ne $i) { $StrategyCombo.SelectedIndex = $i }
+                            break
+                        }
+                    }
+                }
             }
             $needUpdate = -not $StatusText.Text -or $StatusText.Text -notmatch '^Running:'
             if ($needUpdate) {
@@ -1935,6 +1954,8 @@ $timer.Add_Tick({
                 if ($runningBat) {
                     $StatusText.Text = "Running: $($runningBat.Name.Replace('.bat',''))"
                     $script:selectedBat = $runningBat.FullName
+                } elseif ($script:launchedStrategyName) {
+                    $StatusText.Text = "Running: $($script:launchedStrategyName)"
                 } elseif ($script:selectedBat) {
                     $StatusText.Text = "Running: $([System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat))"
                 } else {
@@ -2018,6 +2039,7 @@ $trayShow.Add_Click({
 $trayStop.Add_Click({
     Stop-Winws
     Clear-RunningStrategy
+    $script:launchedStrategyName = $null
     $script:winwsProcess = $null
     $trayIcon.Icon = New-TrayIcon $false
 })
@@ -2037,6 +2059,7 @@ $trayRestart.Add_Click({
 $trayExit.Add_Click({
     Stop-Winws
     Clear-RunningStrategy
+    $script:launchedStrategyName = $null
     $trayIcon.Visible = $false
     try { $trayIcon.Dispose() } catch {}
     $timer.Stop()
@@ -2049,6 +2072,15 @@ $trayIcon.Add_DoubleClick({
     $window.WindowState = "Normal"
     $window.Activate()
     $trayIcon.Visible = $false
+    if ($BtnStop.IsEnabled -and $script:selectedBat) {
+        $selName = [System.IO.Path]::GetFileNameWithoutExtension($script:selectedBat)
+        for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
+            if ($StrategyCombo.Items[$i] -eq $selName) {
+                $StrategyCombo.SelectedIndex = $i
+                break
+            }
+        }
+    }
 })
 
 $window.Add_Closing({
@@ -2069,6 +2101,7 @@ Update-AutostartLabel
 $runningBat = Get-RunningStrategy
 if ($runningBat) {
     $script:selectedBat = $runningBat.FullName
+    $script:launchedStrategyName = $runningBat.Name.Replace('.bat','')
     for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
         if ($StrategyCombo.Items[$i] -eq $runningBat.Name.Replace('.bat','')) {
             $StrategyCombo.SelectedIndex = $i
@@ -2085,6 +2118,7 @@ if ($runningBat) {
 } else {
     $storedName = Get-RunningStrategyName
     if ($storedName) {
+        $script:launchedStrategyName = $storedName
         for ($i = 0; $i -lt $StrategyCombo.Items.Count; $i++) {
             if ($StrategyCombo.Items[$i] -ieq $storedName) {
                 $StrategyCombo.SelectedIndex = $i
